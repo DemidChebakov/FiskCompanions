@@ -16,6 +16,7 @@ import com.dchebakov.fiskcompanions.CommonProxy;
 import com.dchebakov.fiskcompanions.client.Squads;
 import com.dchebakov.fiskcompanions.compat.fisk.FiskBridge;
 import com.dchebakov.fiskcompanions.entity.Alignment;
+import com.dchebakov.fiskcompanions.network.PacketRemoveAll;
 import com.dchebakov.fiskcompanions.network.PacketSettingsSync;
 import com.dchebakov.fiskcompanions.network.PacketSpawnHeroes;
 import com.dchebakov.fiskcompanions.network.PacketUpdateSettings;
@@ -44,9 +45,12 @@ public class GuiHeroSpawner extends GuiScreen {
     private static final int MAX_COUNT = 10;
 
     private static final int BTN_TAB = 0; // 0..2
-    private static final int BTN_DONE = 3;
+    private static final int BTN_DONE = 3, BTN_REMOVE_ALL = 4;
     private static final int BTN_SIDE = 10, BTN_BIND = 11, BTN_LESS = 12, BTN_MORE = 13, BTN_RANDOM = 14,
-        BTN_SPAWN = 15, BTN_ADD = 16;
+        BTN_SPAWN = 15, BTN_ADD = 16, BTN_SQUAD_PREV = 17, BTN_SQUAD_NEXT = 18, BTN_DUP_ADD = 19;
+    private static final int BTN_DUP_REMOVE = 25, BTN_DUP_CANCEL = 26;
+    private static final int CONFIRM_TICKS = 60;
+    private static final int STATUS_TICKS = 60;
     private static final int BTN_NEW = 20, BTN_DELETE = 21, BTN_REMOVE = 22, BTN_SWITCH = 23, BTN_SPAWN_SQUAD = 24;
     private static final int BTN_FIGHT_BACK = 30, BTN_FRIENDLY_FIRE = 31;
 
@@ -69,6 +73,13 @@ public class GuiHeroSpawner extends GuiScreen {
     private int left, top, contentTop;
     private int selectedMember = -1;
     private int squadScroll, memberScroll;
+    private GuiButton removeAllButton, addButton;
+    /** Ticks left to click Remove all a second time. */
+    private int removeAllArmed;
+    /** Hero waiting for the duplicate decision (Add again / Remove it / Cancel), or null. */
+    private String duplicateKey;
+    private String status = "";
+    private int statusTicks;
 
     @Override
     public void initGui() {
@@ -84,9 +95,10 @@ public class GuiHeroSpawner extends GuiScreen {
         String[] tabs = { "gui.fiskcompanions.tab.spawn", "gui.fiskcompanions.tab.squads",
             "gui.fiskcompanions.tab.settings" };
         for (int i = 0; i < tabs.length; ++i) {
-            buttonList.add(new GuiButton(BTN_TAB + i, left + i * 84, top + 12, 80, 16, tr(tabs[i])));
+            buttonList.add(new SizedButton(BTN_TAB + i, left + i * 84, top + 12, 80, 16, tr(tabs[i])));
         }
-        buttonList.add(new GuiButton(BTN_DONE, left + W - 56, top + 12, 56, 16, tr("gui.done")));
+        buttonList.add(new SizedButton(BTN_DONE, left + W - 56, top + 12, 56, 16, tr("gui.done")));
+        buttonList.add(removeAllButton = new SizedButton(BTN_REMOVE_ALL, left + 254, top + 12, 88, 16, ""));
 
         // Spawn tab: preview | search + list | options column
         if (lastHero.isEmpty() && !list.all.isEmpty()) {
@@ -101,29 +113,46 @@ public class GuiHeroSpawner extends GuiScreen {
         preview.show(lastHero);
         int cx = left + 288;
         int cw = W - 288;
-        spawnButtons.add(sideButton = new GuiButton(BTN_SIDE, cx, contentTop, cw, 18, ""));
-        spawnButtons.add(bindButton = new GuiButton(BTN_BIND, cx, contentTop + 21, cw, 18, ""));
-        spawnButtons.add(new GuiButton(BTN_LESS, cx, contentTop + 42, 20, 18, "-"));
-        spawnButtons.add(new GuiButton(BTN_MORE, cx + cw - 20, contentTop + 42, 20, 18, "+"));
-        spawnButtons.add(new GuiButton(BTN_RANDOM, cx, contentTop + 63, cw, 18, tr("gui.fiskcompanions.random")));
-        spawnButtons.add(new GuiButton(BTN_SPAWN, cx, contentTop + 90, cw, 20, tr("gui.fiskcompanions.spawn")));
-        spawnButtons.add(new GuiButton(BTN_ADD, cx, contentTop + 114, cw, 18, tr("gui.fiskcompanions.add_to_squad")));
+        spawnButtons.add(sideButton = new SizedButton(BTN_SIDE, cx, contentTop, cw, 18, ""));
+        spawnButtons.add(bindButton = new SizedButton(BTN_BIND, cx, contentTop + 21, cw, 18, ""));
+        spawnButtons.add(new SizedButton(BTN_LESS, cx, contentTop + 42, 20, 18, "-"));
+        spawnButtons.add(new SizedButton(BTN_MORE, cx + cw - 20, contentTop + 42, 20, 18, "+"));
+        spawnButtons.add(new SizedButton(BTN_RANDOM, cx, contentTop + 63, cw, 18, tr("gui.fiskcompanions.random")));
+        spawnButtons.add(new SizedButton(BTN_SPAWN, cx, contentTop + 90, cw, 20, tr("gui.fiskcompanions.spawn")));
+        // "< Squad >": which squad Add to squad goes to
+        spawnButtons.add(new SizedButton(BTN_SQUAD_PREV, cx, contentTop + 114, 18, 18, "<"));
+        spawnButtons.add(new SizedButton(BTN_SQUAD_NEXT, cx + cw - 18, contentTop + 114, 18, 18, ">"));
+        spawnButtons.add(
+            addButton = new SizedButton(BTN_ADD, cx, contentTop + 135, cw, 18, tr("gui.fiskcompanions.add_to_squad")));
+        // Duplicate warning answers: [Add] [Remove] [x], replacing Add to squad while the warning is shown.
+        int half = (cw - 18 - 4) / 2;
+        spawnButtons
+            .add(new SizedButton(BTN_DUP_ADD, cx, contentTop + 135, half, 18, tr("gui.fiskcompanions.dup_add")));
+        spawnButtons.add(
+            new SizedButton(
+                BTN_DUP_REMOVE,
+                cx + half + 2,
+                contentTop + 135,
+                half,
+                18,
+                tr("gui.fiskcompanions.dup_remove")));
+        spawnButtons.add(new SizedButton(BTN_DUP_CANCEL, cx + cw - 18, contentTop + 135, 18, 18, "x"));
 
         // Squads tab: squad list | members
         squadName = new GuiTextField(fontRendererObj, left, contentTop + 138, 130, 12);
-        squadButtons.add(new GuiButton(BTN_NEW, left, contentTop + 116, 63, 18, tr("gui.fiskcompanions.new_squad")));
+        squadButtons.add(new SizedButton(BTN_NEW, left, contentTop + 116, 63, 18, tr("gui.fiskcompanions.new_squad")));
         squadButtons
-            .add(new GuiButton(BTN_DELETE, left + 67, contentTop + 116, 63, 18, tr("gui.fiskcompanions.delete")));
+            .add(new SizedButton(BTN_DELETE, left + 67, contentTop + 116, 63, 18, tr("gui.fiskcompanions.delete")));
         int mx = left + 136;
-        squadButtons.add(new GuiButton(BTN_REMOVE, mx, contentTop + 116, 130, 18, tr("gui.fiskcompanions.remove")));
-        squadButtons
-            .add(new GuiButton(BTN_SWITCH, mx + 138, contentTop + 116, 130, 18, tr("gui.fiskcompanions.switch_side")));
-        squadButtons.add(new GuiButton(BTN_SPAWN_SQUAD, mx, contentTop + 138, 268, 20, ""));
+        squadButtons.add(new SizedButton(BTN_REMOVE, mx, contentTop + 116, 130, 18, tr("gui.fiskcompanions.remove")));
+        squadButtons.add(
+            new SizedButton(BTN_SWITCH, mx + 138, contentTop + 116, 130, 18, tr("gui.fiskcompanions.switch_side")));
+        squadButtons.add(new SizedButton(BTN_SPAWN_SQUAD, mx, contentTop + 138, 268, 20, ""));
 
         // Settings tab
-        settingsButtons.add(fightBackButton = new GuiButton(BTN_FIGHT_BACK, left + 52, contentTop + 6, 300, 20, ""));
+        settingsButtons.add(fightBackButton = new SizedButton(BTN_FIGHT_BACK, left + 52, contentTop + 6, 300, 20, ""));
         settingsButtons
-            .add(friendlyFireButton = new GuiButton(BTN_FRIENDLY_FIRE, left + 52, contentTop + 66, 300, 20, ""));
+            .add(friendlyFireButton = new SizedButton(BTN_FRIENDLY_FIRE, left + 52, contentTop + 66, 300, 20, ""));
 
         buttonList.addAll(spawnButtons);
         buttonList.addAll(squadButtons);
@@ -182,8 +211,18 @@ public class GuiHeroSpawner extends GuiScreen {
             }
         }
         for (GuiButton b : spawnButtons) {
-            if (b.id == BTN_ADD) b.enabled = squad != null;
+            if (b.id == BTN_ADD) {
+                b.enabled = squad != null;
+                b.visible &= duplicateKey == null;
+            } else if (b.id == BTN_DUP_ADD || b.id == BTN_DUP_REMOVE || b.id == BTN_DUP_CANCEL) {
+                b.visible &= duplicateKey != null;
+            } else if (b.id == BTN_SQUAD_PREV || b.id == BTN_SQUAD_NEXT) {
+                b.enabled = squads().size() > 1;
+            }
         }
+        removeAllButton.displayString = removeAllArmed > 0
+            ? EnumChatFormatting.RED + tr("gui.fiskcompanions.remove_all_confirm")
+            : tr("gui.fiskcompanions.remove_all");
         boolean canEdit = PacketSettingsSync.clientCanEdit;
         fightBackButton.displayString = tr(
             PacketSettingsSync.clientFightBackPlayers ? "gui.fiskcompanions.fight_back_on"
@@ -225,10 +264,47 @@ public class GuiHeroSpawner extends GuiScreen {
                 spawnSelected();
                 return;
             case BTN_ADD:
-                if (squad != null && FiskBridge.lookup(list.selectedKey) != null) {
-                    squad.members.add(new Squads.Member(list.selectedKey, side));
+                addToSquad(squad, list.selectedKey);
+                break;
+            case BTN_DUP_ADD:
+                if (squad != null && duplicateKey != null) {
+                    squad.members.add(new Squads.Member(duplicateKey, side));
                     Squads.save();
+                    setStatus(tr("gui.fiskcompanions.added", squad.name));
                 }
+                duplicateKey = null;
+                break;
+            case BTN_DUP_REMOVE:
+                if (squad != null && duplicateKey != null) {
+                    for (int i = 0; i < squad.members.size(); ++i) {
+                        if (squad.members.get(i).hero.equals(duplicateKey)) {
+                            squad.members.remove(i);
+                            break;
+                        }
+                    }
+                    Squads.save();
+                    setStatus(tr("gui.fiskcompanions.removed_from", squad.name));
+                }
+                duplicateKey = null;
+                break;
+            case BTN_DUP_CANCEL:
+                duplicateKey = null;
+                break;
+            case BTN_SQUAD_PREV:
+            case BTN_SQUAD_NEXT:
+                if (!squads().isEmpty()) {
+                    int n = squads().size();
+                    selectSquad((selectedSquad + (button.id == BTN_SQUAD_NEXT ? 1 : n - 1)) % n);
+                }
+                duplicateKey = null;
+                break;
+            case BTN_REMOVE_ALL:
+                if (removeAllArmed > 0) {
+                    CommonProxy.network.sendToServer(new PacketRemoveAll());
+                    mc.displayGuiScreen(null);
+                    return;
+                }
+                removeAllArmed = CONFIRM_TICKS; // second click within 3 s confirms
                 break;
             case BTN_NEW:
                 Squads.Squad created = new Squads.Squad();
@@ -273,6 +349,27 @@ public class GuiHeroSpawner extends GuiScreen {
                 break;
         }
         refresh();
+    }
+
+    /** Adds the hero to the squad, or asks first if it's already in it. */
+    private void addToSquad(Squads.Squad squad, String heroKey) {
+        if (squad == null || FiskBridge.lookup(heroKey) == null) {
+            return;
+        }
+        for (Squads.Member m : squad.members) {
+            if (m.hero.equals(heroKey)) {
+                duplicateKey = heroKey;
+                return;
+            }
+        }
+        squad.members.add(new Squads.Member(heroKey, side));
+        Squads.save();
+        setStatus(tr("gui.fiskcompanions.added", squad.name));
+    }
+
+    private void setStatus(String text) {
+        status = text;
+        statusTicks = STATUS_TICKS;
     }
 
     private void sendSettings() {
@@ -336,6 +433,43 @@ public class GuiHeroSpawner extends GuiScreen {
         refresh();
     }
 
+    /** Selects a hero and presses Add to squad; returns true if the duplicate warning came up. */
+    public boolean addToSquadForTest(String heroKey) {
+        list.selectedKey = lastHero = heroKey;
+        addToSquad(currentSquad(), heroKey);
+        refresh();
+        return duplicateKey != null;
+    }
+
+    /** Answers the duplicate warning with the close (x) button. */
+    public void cancelDuplicateForTest() {
+        actionPerformed(buttonById(BTN_DUP_CANCEL));
+    }
+
+    /** Picks a squad in the "< Squad >" selector. */
+    public void selectSquadNamed(String name) {
+        for (int i = 0; i < squads().size(); ++i) {
+            if (squads().get(i).name.equals(name)) {
+                selectSquad(i);
+                refresh();
+                return;
+            }
+        }
+    }
+
+    /** Clicks Remove all twice, as a player confirming it. */
+    public void removeAllForTest() {
+        actionPerformed(removeAllButton);
+        actionPerformed(removeAllButton);
+    }
+
+    private GuiButton buttonById(int id) {
+        for (Object o : buttonList) {
+            if (((GuiButton) o).id == id) return (GuiButton) o;
+        }
+        return null;
+    }
+
     /** Selects the squad with this name and presses its Spawn button, as a player would. */
     public void spawnSquadNamed(String name) {
         for (int i = 0; i < squads().size(); ++i) {
@@ -375,6 +509,8 @@ public class GuiHeroSpawner extends GuiScreen {
             if (list.mouseClicked(x, y)) {
                 lastHero = list.selectedKey;
                 preview.show(lastHero);
+                duplicateKey = null;
+                refresh();
             }
             preview.mouseClicked(x, y, button);
         } else if (tab == TAB_SQUADS) {
@@ -441,6 +577,10 @@ public class GuiHeroSpawner extends GuiScreen {
         search.updateCursorCounter();
         squadName.updateCursorCounter();
         preview.tick();
+        if (statusTicks > 0) --statusTicks;
+        if (removeAllArmed > 0 && --removeAllArmed == 0) {
+            refresh();
+        }
         if (tab == TAB_SETTINGS) {
             refresh(); // the server's answer may arrive after the menu opened
         }
@@ -469,17 +609,32 @@ public class GuiHeroSpawner extends GuiScreen {
         int cx = left + 288;
         String c = tr("gui.fiskcompanions.count", count);
         drawCenteredString(fontRendererObj, c, cx + (W - 288) / 2, contentTop + 47, 0xFFFFFF);
-        HeroIteration iter = FiskBridge.lookup(list.selectedKey);
-        String name = iter != null ? FiskBridge.displayName(iter) : "-";
-        drawString(fontRendererObj, fontRendererObj.trimStringToWidth(name, W - 288), cx, contentTop + 136, 0xFFFF55);
         Squads.Squad squad = currentSquad();
-        drawString(
+        String squadLabel = squad != null ? squad.name : "-";
+        drawCenteredString(
             fontRendererObj,
-            fontRendererObj
-                .trimStringToWidth(tr("gui.fiskcompanions.squad_target", squad != null ? squad.name : "-"), W - 288),
-            cx,
-            contentTop + 148,
-            0x999999);
+            fontRendererObj.trimStringToWidth(squadLabel, W - 288 - 40),
+            cx + (W - 288) / 2,
+            contentTop + 119,
+            0xFFFFFF);
+        int ty = contentTop + 157;
+        if (duplicateKey != null) {
+            HeroIteration dup = FiskBridge.lookup(duplicateKey);
+            String warning = tr(
+                "gui.fiskcompanions.duplicate",
+                dup != null ? FiskBridge.displayName(dup) : duplicateKey,
+                squadLabel);
+            for (Object line : fontRendererObj.listFormattedStringToWidth(warning, W - 288)) {
+                drawString(fontRendererObj, (String) line, cx, ty, 0xFFAA33);
+                ty += 10;
+            }
+        } else if (statusTicks > 0) {
+            drawString(fontRendererObj, fontRendererObj.trimStringToWidth(status, W - 288), cx, ty, 0x77DD77);
+        } else {
+            HeroIteration iter = FiskBridge.lookup(list.selectedKey);
+            String name = iter != null ? FiskBridge.displayName(iter) : "-";
+            drawString(fontRendererObj, fontRendererObj.trimStringToWidth(name, W - 288), cx, ty, 0xFFFF55);
+        }
     }
 
     private void drawSquadsTab(int mouseX, int mouseY) {

@@ -56,6 +56,8 @@ public final class Gallery {
     private EntityFiskHero raceDummy;
     private int raceTicks = -1;
     private static volatile boolean spawnerRequest;
+    private static volatile boolean removeAllRequest;
+    private int removeAllTicks = -1;
     private int spawnerTicks = -1;
     private int spawnerBefore;
 
@@ -106,6 +108,12 @@ public final class Gallery {
     }
 
     /** Client side: true once when the client should drive the spawner menu test. */
+    public static boolean takeRemoveAllRequest() {
+        boolean b = removeAllRequest;
+        removeAllRequest = false;
+        return b;
+    }
+
     public static boolean takeSpawnerRequest() {
         boolean b = spawnerRequest;
         spawnerRequest = false;
@@ -144,6 +152,10 @@ public final class Gallery {
         }
         if (spawnerTicks >= 0) {
             tickSpawnerTest();
+            return;
+        }
+        if (removeAllTicks >= 0) {
+            tickRemoveAllTest();
             return;
         }
         if (page < 0 || ++ticks >= PAGE_TICKS) {
@@ -479,10 +491,24 @@ public final class Gallery {
             expected);
         FiskCompanions.LOG.info("[gallery] {}", result);
         index.add(result);
+        spawnerTicks = -1;
+        // Next: Remove all, pressed (twice, to confirm) in the real menu.
+        removeAllRequest = true;
+        removeAllTicks = 0;
+    }
+
+    private void tickRemoveAllTest() {
+        if (++removeAllTicks < 60) {
+            return;
+        }
+        int left = countCharacters();
+        String result = String.format("remove all test: %s (%d characters left)", left == 0 ? "PASS" : "FAIL", left);
+        FiskCompanions.LOG.info("[gallery] {}", result);
+        index.add(result);
         for (Object o : new ArrayList<Object>(world.loadedEntityList)) {
             if (o instanceof EntityFiskHero) ((EntityFiskHero) o).setDead();
         }
-        spawnerTicks = -1;
+        removeAllTicks = -1;
         friendlyFireTest();
         finish();
     }

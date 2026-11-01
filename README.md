@@ -48,6 +48,9 @@ or right-click a character with it to change that character.
 Hold the Configurator and **right-click** (into the air or at the ground). The **Hero Spawner** menu opens. It has three
 tabs at the top: **Spawn**, **Squads** and **Settings**. **Done** closes it.
 
+**Remove all** (top bar) removes your characters from the world. Click it, then click again within 3 seconds to confirm.
+In singleplayer or Creative it removes every character; on a server it removes yours and unowned ones.
+
 #### Spawn tab: one character, or several of the same
 ![Spawn tab](docs/images/spawner-spawn.png)
 
@@ -60,7 +63,9 @@ tabs at the top: **Spawn**, **Squads** and **Settings**. **Done** closes it.
 6. **- Count +**: how many to spawn at once (1-10).
 7. **Random hero**: picks a random suit.
 8. **Spawn**: the characters appear in front of you.
-9. **Add to squad**: adds the selected suit (with its side) to the squad chosen on the Squads tab.
+9. **< Squad >**: the arrows choose which squad **Add to squad** puts the selected suit (with its side) into.
+   If that character is already in the squad, a warning appears: **Add** (add it again), **Remove** (take the existing
+   one out) or **x** (do nothing).
 
 #### Squads tab: spawn a whole team with one button
 ![Squads tab](docs/images/spawner-squads.png)
@@ -167,6 +172,9 @@ Install the same jars and heropacks on the **server and on every player's game**
 - Transformations a heropack triggers **only** with its own scripted key (not Fisk's standard transformation) can't run
   on a mob. The character then stays in its untransformed look.
 - Ground smash damages and knocks back but doesn't break blocks.
+- A few heropack suits have scripts that only work on players (tested with 15 heropacks / 783 suits: one,
+  `sind:tony`). The character keeps its looks and fights, but that suit's own per-tick effects are switched off; the
+  game log names the suit once instead of crashing.
 - Melee characters facing strong knockback powers (sonic scream, energy beams) may struggle to get close. That's the
   power doing its job.
 
@@ -193,7 +201,9 @@ See [docs/fisk-internals.md](docs/fisk-internals.md).
   per-gadget cooldowns. Rapid webs call `EquipmentRapidWebs.shoot` directly.
 - Weapons (the suit's primary equipment): the melee weapon is held up close (Fisk's punch system applies weapon
   damage) and guns at range, fired through Fisk's protected `ItemGun.trigger` via reflection with infinite ammo.
-- A Steve body is drawn under the suit, so partial or see-through suits look as they do on a player.
+- A Steve body is drawn under the suit, so partial or see-through suits look as they do on a player. Suits whose
+  renderer builds the body from custom models (robots like Ultron, creatures, the Hulk) get no Steve body, so default
+  arms and legs don't stick out beside the suit's own.
 
 ## Building from source
 Requirements: JDK 17+ to run Gradle. The build downloads its own Java 8 toolchain.

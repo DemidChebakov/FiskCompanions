@@ -1,6 +1,8 @@
 package com.dchebakov.fiskcompanions.entity;
 
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.command.IEntitySelector;
 import net.minecraft.entity.Entity;
@@ -160,6 +162,36 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
     }
 
     private double safeX, safeY, safeZ;
+    /** Suits whose script already failed on a character (logged once each). */
+    private static final Set<String> REPORTED_SCRIPT_ERRORS = ConcurrentHashMap.newKeySet();
+    private boolean suitScriptBroken, controllersBroken;
+
+    /**
+     * Fisk's suit tick runs the heropack's scripts; some assume a player wearer and throw on a mob. Rather than crash
+     * the game, the suit's per-tick scripts are switched off for this character (it keeps its looks and fights on).
+     */
+    private void tickSuitSafely(TickEvent.Phase phase) {
+        if (suitScriptBroken) {
+            return;
+        }
+        try {
+            FiskBridge.tickSuit(this, wornSuit, phase);
+        } catch (RuntimeException e) {
+            suitScriptBroken = true;
+            reportScriptError("suit tick", e);
+        }
+    }
+
+    private void reportScriptError(String where, RuntimeException e) {
+        powers.record("script-error");
+        if (REPORTED_SCRIPT_ERRORS.add(getHeroKey() + "|" + where)) {
+            FiskCompanions.LOG.warn(
+                "Suit {} threw in its {} script on a character (it probably expects a player); turned off for characters: {}",
+                getHeroKey(),
+                where,
+                e.toString());
+        }
+    }
 
     @Override
     public void onUpdate() {
@@ -175,7 +207,7 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         }
         if (isEntityAlive()) {
             wornSuit = FiskBridge.computeWornSuit(this);
-            FiskBridge.tickSuit(this, wornSuit, TickEvent.Phase.START);
+            tickSuitSafely(TickEvent.Phase.START);
         }
         super.onUpdate();
         if (!isEntityAlive()) {
@@ -184,11 +216,18 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         data.onUpdate(this);
         if (!worldObj.isRemote) {
             restoreSuitIfMissing();
-            size.update();
-            flight.update();
-            speed.update();
-            weapons.update();
-            powers.update();
+            if (!controllersBroken) {
+                try {
+                    size.update();
+                    flight.update();
+                    speed.update();
+                    weapons.update();
+                    powers.update();
+                } catch (RuntimeException e) {
+                    controllersBroken = true; // usually a heropack script that only works on players
+                    reportScriptError("powers", e);
+                }
+            }
             if (TRACE != null && ticksExisted % 20 == 0 && getHeroKey().contains(TRACE)) {
                 EntityLivingBase t = getAttackTarget();
                 FiskCompanions.LOG.info(
@@ -209,7 +248,7 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
             }
         }
         applyScale();
-        FiskBridge.tickSuit(this, wornSuit, TickEvent.Phase.END);
+        tickSuitSafely(TickEvent.Phase.END);
     }
 
     /**
@@ -364,7 +403,13 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         float damage = (float) getEntityAttribute(SharedMonsterAttributes.attackDamage).getAttributeValue();
         swingItem();
         powers.record("melee");
-        boolean hit = target.attackEntityFrom(DamageSource.causeMobDamage(this), damage);
+        boolean hit;
+        try {
+            hit = target.attackEntityFrom(DamageSource.causeMobDamage(this), damage);
+        } catch (RuntimeException e) {
+            reportScriptError("melee", e); // a suit script in Fisk's damage handlers
+            return false;
+        }
         if (hit) {
             float yaw = rotationYaw * (float) Math.PI / 180.0F;
             target.addVelocity(-MathHelper.sin(yaw) * 0.4D, 0.1D, MathHelper.cos(yaw) * 0.4D);
@@ -393,7 +438,12 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
                     grudge = true;
                 }
         }
-        if (!super.attackEntityFrom(source, amount)) {
+        try {
+            if (!super.attackEntityFrom(source, amount)) {
+                return false;
+            }
+        } catch (RuntimeException e) {
+            reportScriptError("damage", e); // a suit script in Fisk's damage handlers
             return false;
         }
         powers.onHurt();

@@ -8,6 +8,7 @@ import com.dchebakov.fiskcompanions.debug.SelfTest;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
 import com.dchebakov.fiskcompanions.item.ItemHeroConfigurator;
 import com.dchebakov.fiskcompanions.network.PacketConfigureHero;
+import com.dchebakov.fiskcompanions.network.PacketRemoveAll;
 import com.dchebakov.fiskcompanions.network.PacketSettingsSync;
 import com.dchebakov.fiskcompanions.network.PacketSpawnHeroes;
 import com.dchebakov.fiskcompanions.network.PacketUpdateSettings;
@@ -39,6 +40,7 @@ public class CommonProxy {
         network.registerMessage(PacketSpawnHeroes.Handler.class, PacketSpawnHeroes.class, 1, Side.SERVER);
         network.registerMessage(PacketUpdateSettings.Handler.class, PacketUpdateSettings.class, 2, Side.SERVER);
         network.registerMessage(PacketSettingsSync.Handler.class, PacketSettingsSync.class, 3, Side.CLIENT);
+        network.registerMessage(PacketRemoveAll.Handler.class, PacketRemoveAll.class, 4, Side.SERVER);
     }
 
     public void init(FMLInitializationEvent event) {}

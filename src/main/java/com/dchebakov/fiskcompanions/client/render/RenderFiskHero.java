@@ -9,6 +9,7 @@ import net.minecraft.util.Vec3;
 
 import org.lwjgl.opengl.GL11;
 
+import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
 import com.fiskmods.heroes.client.animation.GLProxy;
 import com.fiskmods.heroes.client.model.ModelHelper;
 import com.fiskmods.heroes.common.data.var.Vars;
@@ -52,6 +53,15 @@ public class RenderFiskHero extends RenderBiped {
         Vec3 motion = SHClientUtils.getMotion(entity);
         ModelHelper.rotateGliding(entity, motion, GLProxy.RENDER, partialTicks);
         ModelHelper.applyRotations(entity, motion, GLProxy.RENDER, partialTicks);
+    }
+
+    /** The Steve body under the suit; left out for suits that build their own body from custom models. */
+    @Override
+    protected void renderModel(EntityLivingBase entity, float limbSwing, float limbSwingAmount, float ageInTicks,
+        float headYaw, float headPitch, float scale) {
+        if (!(entity instanceof EntityFiskHero) || BaseBody.show((EntityFiskHero) entity)) {
+            super.renderModel(entity, limbSwing, limbSwingAmount, ageInTicks, headYaw, headPitch, scale);
+        }
     }
 
     @Override

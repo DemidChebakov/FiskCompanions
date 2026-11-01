@@ -10,6 +10,7 @@ import net.minecraft.world.WorldType;
 import com.dchebakov.fiskcompanions.FiskCompanions;
 import com.dchebakov.fiskcompanions.client.gui.GuiHeroConfigurator;
 import com.dchebakov.fiskcompanions.client.gui.GuiHeroSpawner;
+import com.dchebakov.fiskcompanions.client.render.BaseBody;
 import com.dchebakov.fiskcompanions.compat.fisk.FiskBridge;
 import com.dchebakov.fiskcompanions.entity.Alignment;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
@@ -30,6 +31,7 @@ public class ClientSelfTestLauncher {
     private boolean launched;
     private int guiTicks = -1;
     private int spawnerTicks = -1;
+    private int removeAllTicks = -1;
     private int menuTicks;
 
     /** Opens the real configurator for the requested mob, screenshots it, then applies a choice through the GUI. */
@@ -71,6 +73,15 @@ public class ClientSelfTestLauncher {
 
     /** Opens the real spawner menu, screenshots each tab, then spawns the Avengers squad through it. */
     private void driveSpawnerTest(Minecraft mc) {
+        if (Gallery.takeRemoveAllRequest()) {
+            FiskCompanions.proxy.openSpawner();
+            removeAllTicks = 0;
+        }
+        if (removeAllTicks >= 0 && mc.currentScreen instanceof GuiHeroSpawner && ++removeAllTicks == 5) {
+            shot(mc, "fc-spawner-before-remove.png");
+            ((GuiHeroSpawner) mc.currentScreen).removeAllForTest();
+            removeAllTicks = -1;
+        }
         if (Gallery.takeSpawnerRequest()) {
             FiskCompanions.proxy.openSpawner();
             spawnerTicks = 0;
@@ -83,8 +94,12 @@ public class ClientSelfTestLauncher {
         ++spawnerTicks;
         if (spawnerTicks == 2) {
             gui.showTab(GuiHeroSpawner.TAB_SPAWN);
+            gui.selectSquadNamed("Avengers");
+            boolean warned = gui.addToSquadForTest("fiskheroes:iron_man"); // already in the Avengers
+            FiskCompanions.LOG.info("[gallery] client duplicate warning test: {}", warned ? "PASS" : "FAIL");
         } else if (spawnerTicks == 15) {
             shot(mc, "fc-spawner-spawn.png");
+            gui.cancelDuplicateForTest();
             gui.showTab(GuiHeroSpawner.TAB_SQUADS);
         } else if (spawnerTicks == 22) {
             shot(mc, "fc-spawner-squads.png");
@@ -111,7 +126,11 @@ public class ClientSelfTestLauncher {
             for (Object o : mc.theWorld.loadedEntityList) {
                 if (o instanceof EntityFiskHero) {
                     EntityFiskHero mob = (EntityFiskHero) o;
-                    FiskCompanions.LOG.info("[gallery] client {} {}", mob.getHeroKey(), FiskBridge.debugState(mob));
+                    FiskCompanions.LOG.info(
+                        "[gallery] client {} base={} {}",
+                        mob.getHeroKey(),
+                        BaseBody.show(mob) ? "steve" : "none",
+                        FiskBridge.debugState(mob));
                 }
             }
             ScreenShotHelper

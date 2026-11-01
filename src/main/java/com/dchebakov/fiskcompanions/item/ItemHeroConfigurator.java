@@ -1,5 +1,6 @@
 package com.dchebakov.fiskcompanions.item;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import net.minecraft.creativetab.CreativeTabs;
@@ -41,6 +42,16 @@ public class ItemHeroConfigurator extends Item {
         if (heroes.isEmpty()) {
             player.addChatMessage(new ChatComponentTranslation("fiskcompanions.msg.no_heroes"));
             return true;
+        }
+        // Prefer suits with a helmet for random summons; heroes without one show the bare Steve head.
+        List<HeroIteration> helmeted = new ArrayList<>();
+        for (HeroIteration iter : heroes) {
+            if (FiskBridge.hasHelmet(iter)) {
+                helmeted.add(iter);
+            }
+        }
+        if (!helmeted.isEmpty()) {
+            heroes = helmeted;
         }
         EntityFiskHero hero = new EntityFiskHero(world);
         hero.setLocationAndAngles(

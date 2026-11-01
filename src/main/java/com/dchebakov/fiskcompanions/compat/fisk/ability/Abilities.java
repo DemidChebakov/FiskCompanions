@@ -151,7 +151,10 @@ public final class Abilities {
             }
             float mult = FiskMath.getScaledDistance(center, Vectors.centerOf(entity), radius);
             profile.apply(entity, s, ModDamageSources.EXPLOSION.apply((Entity) entity), mult, false);
-            SHHelper.knockbackWithoutNotify(entity, s, knockback * mult);
+            if (knockback * mult > 0.0F) {
+                // A zero amount reaches vanilla knockBack as a 0/0 and turns the victim's position into NaN.
+                SHHelper.knockbackWithoutNotify(entity, s, knockback * mult);
+            }
         }
         s.worldObj.playSoundEffect(center.xCoord, center.yCoord, center.zCoord, "random.explode", 2.0F, 0.8F);
         s.swingItem();

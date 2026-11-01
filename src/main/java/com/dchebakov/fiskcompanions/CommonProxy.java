@@ -3,6 +3,7 @@ package com.dchebakov.fiskcompanions;
 import net.minecraft.server.MinecraftServer;
 
 import com.dchebakov.fiskcompanions.debug.CommandSelfTest;
+import com.dchebakov.fiskcompanions.debug.Gallery;
 import com.dchebakov.fiskcompanions.debug.SelfTest;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
 import com.dchebakov.fiskcompanions.item.ItemHeroConfigurator;
@@ -45,7 +46,12 @@ public class CommonProxy {
     /** {@code -Dfiskcompanions.selftest=true} runs the self-test on startup and stops the server when done. */
     public void serverStarted(FMLServerStartedEvent event) {
         if (Boolean.getBoolean("fiskcompanions.selftest")) {
-            SelfTest.start(MinecraftServer.getServer(), true);
+            MinecraftServer server = MinecraftServer.getServer();
+            if (server.isDedicatedServer()) {
+                SelfTest.start(server, true);
+            } else {
+                Gallery.start(server, () -> SelfTest.start(server, true)); // screenshots first, then behaviour
+            }
         }
     }
 

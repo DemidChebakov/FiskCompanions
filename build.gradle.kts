@@ -14,5 +14,8 @@ tasks.withType<com.gtnewhorizons.retrofuturagradle.minecraft.RunMinecraftTask>()
     javaLauncher.set(runLauncher)
     if (project.hasProperty("fcSelftest")) {
         extraJvmArgs.add("-Dfiskcompanions.selftest=true")
+        project.findProperty("fcOnly")?.let { extraJvmArgs.add("-Dfiskcompanions.selftest.only=$it") }
+        project.findProperty("fcTrace")?.let { extraJvmArgs.add("-Dfiskcompanions.trace=$it") }
+        if (project.hasProperty("fcNoSuitUp")) extraJvmArgs.add("-Dfiskcompanions.nosuitup=true")
     }
 }

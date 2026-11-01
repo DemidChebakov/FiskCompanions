@@ -62,7 +62,7 @@ public final class SelfTest {
     private SelfTest(MinecraftServer server, boolean stopWhenDone) {
         this.server = server;
         this.world = server.worldServerForDimension(0);
-        this.heroes = FiskBridge.allIterations();
+        this.heroes = FiskBridge.testIterations();
         this.stopWhenDone = stopWhenDone;
     }
 
@@ -198,7 +198,7 @@ public final class SelfTest {
                 ++problems;
             }
             String line = String.format(
-                "%-40s suit=%s targets=%s uses=%s hp=%.0f | vs HERO %-34s suit=%s targets=%s uses=%s hp=%.0f | pig=%s",
+                "%-40s suit=%s targets=%s uses=%s hp=%.0f | vs HERO %-34s suit=%s targets=%s uses=%s hp=%.0f | pig=%s dist=%.1f dy=%.1f",
                 FiskBridge.keyOf(c.villainHero),
                 villainSuit ? "ok" : "MISSING",
                 c.villainTargets,
@@ -211,7 +211,9 @@ public final class SelfTest {
                 c.hero.getPowers()
                     .getUsage(),
                 c.hero.isEntityAlive() ? c.hero.getHealth() : 0.0F,
-                c.pig.isEntityAlive() ? "alive" : "dead");
+                c.pig.isEntityAlive() ? "alive" : "dead",
+                c.villain.getDistanceToEntity(c.hero),
+                c.hero.posY - c.villain.posY);
             report.add(line);
             FiskCompanions.LOG.info("[selftest] {}", line);
             for (Entity e : new Entity[] { c.villain, c.hero, c.pig }) {

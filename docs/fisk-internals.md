@@ -47,6 +47,20 @@ Gliding, MetalSkin, PropelledFlight, SentryMode, SizeManipulation, SuperSpeed, T
 Tentacles, SonicWaves (partially), WallCrawling, Transformation. Flight: set `Vars.FLYING` for the
 animation and drive motion ourselves, as `EntityIronMan` does.
 
+## Added after testing with SecretHeroes 5.1.6
+- `ModifierEntry.get(prop)` throws for undeclared properties — check `entry.modifier.getProperties()` first.
+- Suited mobs must register `ArmorAttribute.STEP_HEIGHT` (Fisk's suit tick writes to it).
+- Fisk cancels vanilla melee from suited non-players and re-applies it via `SHHelper.attackEntityMelee` with the
+  hero's punchDamage. Vanilla `EntityAIAttackOnCollide` needs a path, and there is none to a flier, so we use
+  `AIMeleeAttack`.
+- `TRANSFORMATION` (toggle + optional timer): the timer advances for any entity once the toggle is set. Meaning
+  differs per hero (suit on vs. suit off), so we keep a transformation only if enabled modifiers or punch damage go up.
+- `SIZE_MANIPULATION` is player-only, and so are Fisk's render/hitbox scaling (`RenderPlayer`, `PlayerSize`). Ported in
+  `SizeController`; `EntityFiskHero.applyScale` and `RenderFiskHero.preRenderCallback` apply `Vars.SCALE`. Without
+  it Hulk stays in his TRANSFORMING profile (scale < 1.4) — stuck mid-animation with near-zero speed.
+- `CHARGED_BEAM`: setting `Vars.BEAM_CHARGING` is enough; the modifier charges, fires and clears it.
+- Flight: aim feet at the target's feet, or two fliers out-climb each other.
+
 ## Not yet supported (logged)
-CHARGED_BEAM (charge/release state machine), TELEKINESIS, TENTACLES, SHAPE_SHIFTING, TELEPORTATION,
+TELEKINESIS, TENTACLES, SHAPE_SHIFTING, TELEPORTATION,
 SPELLCASTING, EARTHQUAKE, LIGHTNING, CACTUS/SPIKES.

@@ -7,7 +7,6 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityCreature;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.ai.EntityAIAttackOnCollide;
 import net.minecraft.entity.ai.EntityAIHurtByTarget;
 import net.minecraft.entity.ai.EntityAILookIdle;
 import net.minecraft.entity.ai.EntityAINearestAttackableTarget;
@@ -33,14 +32,17 @@ import com.dchebakov.fiskcompanions.FiskCompanions;
 import com.dchebakov.fiskcompanions.compat.fisk.FiskBridge;
 import com.dchebakov.fiskcompanions.entity.ai.AIFollowOwner;
 import com.dchebakov.fiskcompanions.entity.ai.AIGuardOwner;
+import com.dchebakov.fiskcompanions.entity.ai.AIMeleeAttack;
 import com.dchebakov.fiskcompanions.entity.ai.AIOwnerHurtByTarget;
 import com.dchebakov.fiskcompanions.entity.ai.AIOwnerHurtTarget;
 import com.dchebakov.fiskcompanions.entity.ai.FlightController;
 import com.dchebakov.fiskcompanions.entity.ai.PowerController;
+import com.dchebakov.fiskcompanions.entity.ai.SizeController;
 import com.dchebakov.fiskcompanions.item.ItemHeroConfigurator;
 import com.fiskmods.heroes.common.data.IDataHolder;
 import com.fiskmods.heroes.common.data.var.DataContainer;
 import com.fiskmods.heroes.common.data.var.DataSyncer;
+import com.fiskmods.heroes.common.data.var.Vars;
 import com.fiskmods.heroes.common.entity.IHeroTrackedEntity;
 import com.fiskmods.heroes.common.entity.INonBreathing;
 import com.fiskmods.heroes.common.entity.attribute.ArmorAttribute;
@@ -54,6 +56,8 @@ import cpw.mods.fml.common.gameevent.TickEvent;
  */
 public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity, IDataHolder, INonBreathing {
 
+    /** Dev: {@code -Dfiskcompanions.trace=<hero key part>} logs that mob's AI state every second. */
+    private static final String TRACE = System.getProperty("fiskcompanions.trace");
     private static final int DW_HERO = 16;
     private static final int DW_ALIGNMENT = 17;
     private static final int DW_OWNER = 18;
@@ -63,6 +67,8 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
     private HeroIteration wornSuit;
     private final PowerController powers = new PowerController(this);
     private final FlightController flight = new FlightController(this);
+    private final SizeController size = new SizeController(this);
+    private float appliedScale = 1.0F;
 
     public EntityFiskHero(World world) {
         super(world);
@@ -75,7 +81,7 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         }
 
         tasks.addTask(1, new EntityAISwimming(this));
-        tasks.addTask(2, new EntityAIAttackOnCollide(this, 1.2D, true));
+        tasks.addTask(2, new AIMeleeAttack(this, 1.2D));
         tasks.addTask(3, new AIFollowOwner(this, 1.1D));
         tasks.addTask(5, new EntityAIWander(this, 0.8D));
         tasks.addTask(6, new EntityAIWatchClosest(this, EntityPlayer.class, 8.0F));
@@ -154,8 +160,20 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         return wornSuit;
     }
 
+    private double safeX, safeY, safeZ;
+
     @Override
     public void onUpdate() {
+        // A NaN motion from any pack power (e.g. a zero-strength knockback) would send the mob out of the world.
+        if (Double.isNaN(posX) || Double.isNaN(
+            posY) || Double.isNaN(posZ) || Double.isNaN(motionX) || Double.isNaN(motionY) || Double.isNaN(motionZ)) {
+            motionX = motionY = motionZ = 0.0D;
+            setPosition(safeX, safeY, safeZ);
+        } else {
+            safeX = posX;
+            safeY = posY;
+            safeZ = posZ;
+        }
         if (isEntityAlive()) {
             wornSuit = FiskBridge.computeWornSuit(this);
             FiskBridge.tickSuit(this, wornSuit, TickEvent.Phase.START);
@@ -167,10 +185,43 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         data.onUpdate(this);
         if (!worldObj.isRemote) {
             restoreSuitIfMissing();
+            size.update();
             flight.update();
             powers.update();
+            if (TRACE != null && ticksExisted % 20 == 0 && getHeroKey().contains(TRACE)) {
+                EntityLivingBase t = getAttackTarget();
+                FiskCompanions.LOG.info(
+                    "[trace] {} {} pos=({}, {}, {}) mot=({}, {}, {}) flying={} onGround={} target={} dist={} path={}",
+                    getHeroKey(),
+                    getAlignment(),
+                    String.format("%.1f", posX),
+                    String.format("%.1f", posY),
+                    String.format("%.1f", posZ),
+                    String.format("%.2f", motionX),
+                    String.format("%.2f", motionY),
+                    String.format("%.2f", motionZ),
+                    flight.isFlying(),
+                    onGround,
+                    t == null ? "-" : t.getCommandSenderName() + "@" + String.format("%.1f", t.posY),
+                    t == null ? "-" : String.format("%.1f", getDistanceToEntity(t)),
+                    !getNavigator().noPath());
+            }
         }
+        applyScale();
         FiskBridge.tickSuit(this, wornSuit, TickEvent.Phase.END);
+    }
+
+    /** Fisk only resizes players, so scale this mob's hitbox from the synced scale var on both sides. */
+    private void applyScale() {
+        float scale = Vars.SCALE.get(this);
+        if (scale != appliedScale) {
+            appliedScale = scale;
+            setSize(0.6F * scale, 1.8F * scale);
+        }
+    }
+
+    public SizeController getSize() {
+        return size;
     }
 
     /** Re-equips the configured suit if a piece broke or the hero key changed while unloaded. */

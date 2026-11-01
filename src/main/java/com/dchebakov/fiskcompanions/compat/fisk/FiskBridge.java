@@ -9,12 +9,14 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.item.ItemStack;
 
 import com.fiskmods.heroes.FiskHeroes;
+import com.fiskmods.heroes.common.data.var.Vars;
 import com.fiskmods.heroes.common.hero.Hero;
 import com.fiskmods.heroes.common.hero.HeroIteration;
 import com.fiskmods.heroes.common.hero.HeroTracker;
 import com.fiskmods.heroes.common.hero.modifier.Modifier;
 import com.fiskmods.heroes.common.hero.power.ModifierEntry;
 import com.fiskmods.heroes.common.hero.power.PowerProperty;
+import com.fiskmods.heroes.common.hero.power.prop.Transformation;
 import com.fiskmods.heroes.util.SHHelper;
 
 import cpw.mods.fml.common.gameevent.TickEvent;
@@ -51,6 +53,63 @@ public final class FiskBridge {
         list.sort(
             Comparator.comparing((HeroIteration i) -> i.hero.getDomain())
                 .thenComparing(FiskBridge::displayName));
+        return list;
+    }
+
+    /** One-line dump of the transformation and size state of a suited entity, for dev diagnostics. */
+    public static String debugState(EntityLivingBase entity) {
+        Hero hero = HeroTracker.get(entity);
+        StringBuilder sb = new StringBuilder();
+        sb.append("scale=")
+            .append(Vars.SCALE.get(entity))
+            .append(" sizeState=")
+            .append(Vars.SIZE_STATE.get(entity));
+        if (hero != null) {
+            hero.getModifierEntries()
+                .filter(e -> e.modifier == Modifier.TRANSFORMATION)
+                .forEach(e -> {
+                    Transformation t = prop(e, PowerProperty.TRANSFORMATION, null);
+                    if (t != null && t.toggle.hasResult()) {
+                        sb.append(" transform[enabled=")
+                            .append(hero.isModifierEnabled(entity, e))
+                            .append(' ')
+                            .append(
+                                t.toggle.get()
+                                    .get(entity));
+                        if (t.timer.hasResult()) {
+                            sb.append(" timer=")
+                                .append(
+                                    t.timer.get()
+                                        .get(entity));
+                        }
+                        sb.append(']');
+                    }
+                });
+        }
+        return sb.toString();
+    }
+
+    /** True if the hero's set includes a helmet, so the mob's head is covered by the suit. */
+    public static boolean hasHelmet(HeroIteration iter) {
+        return iter != null && iter.hero.hasPieceOfSet(0);
+    }
+
+    /**
+     * {@link #allIterations()} narrowed by the dev property {@code fiskcompanions.selftest.only} (comma-separated key
+     * substrings), used by the self-test and gallery.
+     */
+    public static List<HeroIteration> testIterations() {
+        List<HeroIteration> list = allIterations();
+        String only = System.getProperty("fiskcompanions.selftest.only", "");
+        if (!only.isEmpty()) {
+            String[] parts = only.split(",");
+            list.removeIf(i -> {
+                for (String p : parts) {
+                    if (keyOf(i).contains(p.trim())) return false;
+                }
+                return true;
+            });
+        }
         return list;
     }
 

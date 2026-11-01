@@ -19,11 +19,15 @@ import com.dchebakov.fiskcompanions.compat.fisk.ability.ShotAbility;
 import com.dchebakov.fiskcompanions.compat.fisk.ability.ToggleAbility;
 import com.dchebakov.fiskcompanions.entity.Alignment;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
+import com.fiskmods.heroes.client.pack.json.sound.SoundTrigger;
 import com.fiskmods.heroes.common.data.var.DataVar;
 import com.fiskmods.heroes.common.data.var.Vars;
+import com.fiskmods.heroes.common.entity.attribute.ArmorAttribute;
 import com.fiskmods.heroes.common.hero.Hero;
 import com.fiskmods.heroes.common.hero.modifier.Modifier;
 import com.fiskmods.heroes.common.hero.power.ModifierEntry;
+import com.fiskmods.heroes.common.hero.power.PowerProperty;
+import com.fiskmods.heroes.common.hero.power.prop.Transformation;
 
 /**
  * Server-side "key presses" for the mob: flips toggle powers, fires one-shot powers at the attack target, and heals a
@@ -35,9 +39,12 @@ public class PowerController {
     private static final int GLOBAL_COOLDOWN = 10;
     private static final int RECENT_HURT_TICKS = 60;
     private static final int HEAL_COOLDOWN = 400;
+    private static final int BEAM_BURST_TICKS = 60;
+    private static final int BEAM_REST_TICKS = 40;
 
     private final EntityFiskHero hero;
     private final Map<Modifier, Integer> cooldowns = new HashMap<>();
+    private final Map<Modifier, Integer> beamTicks = new HashMap<>();
     /** Modifiers whose port threw on this mob; skipped so one broken pack power doesn't spam the log. */
     private final Set<Modifier> broken = new HashSet<>();
     private int globalCooldown;
@@ -45,6 +52,8 @@ public class PowerController {
     private int lastHurtTick = -RECENT_HURT_TICKS;
     /** How often each power was used; read by the self-test and handy when debugging a pack hero. */
     private final Map<String, Integer> usage = new TreeMap<>();
+    /** Transformation entries already decided by {@link #suitUp}, so each is evaluated once per hero. */
+    private final Set<String> triedTransforms = new HashSet<>();
 
     public PowerController(EntityFiskHero hero) {
         this.hero = hero;
@@ -69,7 +78,9 @@ public class PowerController {
         }
         setVar(Vars.AIMING, false);
         cooldowns.clear();
+        beamTicks.clear();
         broken.clear();
+        triedTransforms.clear();
     }
 
     public void update() {
@@ -82,6 +93,9 @@ public class PowerController {
         Hero h = FiskBridge.hero(hero);
         if (h == null) {
             return;
+        }
+        if (hero.ticksExisted % 20 == 1 && !Boolean.getBoolean("fiskcompanions.nosuitup")) {
+            suitUp(h);
         }
         EntityLivingBase target = hero.getAttackTarget();
         if (target != null && !target.isEntityAlive()) {
@@ -98,6 +112,7 @@ public class PowerController {
         setVar(Vars.AIMING, sees && ranged && dist > 3.0D);
 
         boolean beaming = updateToggles(h, target, dist, sees);
+        beaming |= updateChargedBeam(h, target, dist, sees);
         if (beaming) {
             face(target);
         }
@@ -105,6 +120,84 @@ public class PowerController {
             fireShot(h, target, dist);
         }
         healOwner();
+    }
+
+    /**
+     * Switches toggle-able TRANSFORMATION modifiers the way a player would with the transform key, but only those that
+     * actually suit the hero up. "Transformation on" means suited for some heroes (Iron Man Mk50's nanites, Hulk, Moon
+     * Knight) and unsuited for others (SecretHeroes' speedster suits dematerialise), so each one is tried once: it is
+     * kept if it enables more of the hero's powers or makes its punches stronger, otherwise reverted. Pack JS key
+     * functions are player-only and not
+     * covered.
+     */
+    private void suitUp(Hero h) {
+        h.getEnabledModifiers(hero, Modifier.TRANSFORMATION, PowerProperty.IS_TOGGLE.isValue(true))
+            .forEach(entry -> {
+                Transformation t = FiskBridge.prop(entry, PowerProperty.TRANSFORMATION, null);
+                if (t == null || !t.toggle.hasResult() || !triedTransforms.add(entry.id)) {
+                    return;
+                }
+                DataVar<Boolean> toggle = t.toggle.get();
+                if (toggle.get(hero)) {
+                    return;
+                }
+                int before = h.getEnabledModifiers(hero)
+                    .size();
+                float punchBefore = ArmorAttribute.PUNCH_DAMAGE.get(hero, h, 1.0F);
+                if (!toggle.set(hero, true)
+                    .success()) {
+                    return;
+                }
+                int after = h.getEnabledModifiers(hero)
+                    .size();
+                float punchAfter = ArmorAttribute.PUNCH_DAMAGE.get(hero, h, 1.0F);
+                if (after <= before && punchAfter <= punchBefore) {
+                    toggle.set(hero, false); // not a suit-up for this hero; never synced, so clients see no change
+                    record("transform-skipped");
+                    FiskCompanions.LOG.debug(
+                        "{}: transformation {} skipped ({} -> {} powers)",
+                        hero.getHeroKey(),
+                        entry.id,
+                        before,
+                        after);
+                    return;
+                }
+                entry.broadcastSoundAtEntity(hero, SoundTrigger.ENABLE);
+                toggle.sync(hero);
+                hero.getSize()
+                    .grow(); // size-changing transformations (Hulk) grow, as their key does for a player
+                record("transform");
+            });
+    }
+
+    /**
+     * CHARGED_BEAM: a player holds the key; Fisk's modifier then charges, fires for its duration and clears
+     * {@code BEAM_CHARGING} itself, for any entity. So start a charge when the target is visible and in range, and keep
+     * facing it until the beam is done. Returns true while charging or firing.
+     */
+    private boolean updateChargedBeam(Hero h, EntityLivingBase target, double dist, boolean sees) {
+        ModifierEntry entry = h.getEnabledModifier(hero, Modifier.CHARGED_BEAM);
+        boolean charging = Vars.BEAM_CHARGING.get(hero);
+        if (entry == null || target == null) {
+            if (charging) setVar(Vars.BEAM_CHARGING, false);
+            return false;
+        }
+        if (charging) {
+            return true;
+        }
+        if (sees && dist <= FiskBridge.prop(entry, PowerProperty.RANGE, 32.0F)
+            && Vars.BEAM_CHARGE.get(hero) <= 0.0F
+            && !cooldowns.containsKey(Modifier.CHARGED_BEAM)) {
+            setVar(Vars.BEAM_CHARGING, true);
+            // At least 5 s between beams: a charged beam with big knockback (Hulk's Thunderclap) would otherwise keep
+            // every
+            // opponent blasted out of melee range.
+            cooldowns
+                .put(Modifier.CHARGED_BEAM, Math.max(100, FiskBridge.prop(entry, PowerProperty.COOLDOWN_TIME, 40)));
+            record("beam:" + Modifier.CHARGED_BEAM.getName());
+            return true;
+        }
+        return false;
     }
 
     private boolean updateToggles(Hero h, EntityLivingBase target, double dist, boolean sees) {
@@ -119,7 +212,7 @@ public class PowerController {
             if (entry != null && target != null) {
                 switch (toggle.mode) {
                     case BEAM:
-                        want = sees && dist <= toggle.range(entry);
+                        want = sees && dist <= toggle.range(entry) && !cooldowns.containsKey(toggle.modifier);
                         break;
                     case MELEE:
                         want = dist <= toggle.range(entry);
@@ -127,6 +220,18 @@ public class PowerController {
                     case DEFENSIVE:
                         want = hero.ticksExisted - lastHurtTick < RECENT_HURT_TICKS;
                         break;
+                }
+            }
+            if (toggle.mode == ToggleAbility.Mode.BEAM) {
+                // Bursts, not a held beam: a beam with knockback would otherwise juggle its target out of reach
+                // forever.
+                int on = want ? beamTicks.merge(toggle.modifier, 1, Integer::sum) : 0;
+                if (!want) {
+                    beamTicks.remove(toggle.modifier);
+                } else if (on > BEAM_BURST_TICKS) {
+                    want = false;
+                    beamTicks.remove(toggle.modifier);
+                    cooldowns.put(toggle.modifier, BEAM_REST_TICKS);
                 }
             }
             if (setVar(toggle.var, want) && want) {

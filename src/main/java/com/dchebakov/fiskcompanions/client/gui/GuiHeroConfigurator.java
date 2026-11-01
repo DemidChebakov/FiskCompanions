@@ -68,6 +68,7 @@ public class GuiHeroConfigurator extends GuiScreen {
         buttonList.add(new GuiButton(BTN_CANCEL, left + half + 4, by + 24, half, 20, tr("gui.cancel")));
         refreshButtons();
         applyFilter();
+        scrollToSelected();
     }
 
     @Override
@@ -102,6 +103,17 @@ public class GuiHeroConfigurator extends GuiScreen {
         scroll = 0;
     }
 
+    /** Opens with the mob's current hero in view. */
+    private void scrollToSelected() {
+        for (int i = 0; i < filtered.size(); ++i) {
+            if (FiskBridge.keyOf(filtered.get(i))
+                .equals(selectedKey)) {
+                scroll = Math.max(0, Math.min(i - ROWS / 2, filtered.size() - ROWS));
+                return;
+            }
+        }
+    }
+
     @Override
     protected void actionPerformed(GuiButton button) {
         switch (button.id) {
@@ -114,14 +126,26 @@ public class GuiHeroConfigurator extends GuiScreen {
                 refreshButtons();
                 break;
             case BTN_APPLY:
-                CommonProxy.network.sendToServer(
-                    new PacketConfigureHero(hero, selectedKey, alignment, bind && alignment == Alignment.HERO));
-                mc.displayGuiScreen(null);
+                apply();
                 break;
             case BTN_CANCEL:
                 mc.displayGuiScreen(null);
                 break;
         }
+    }
+
+    private void apply() {
+        CommonProxy.network
+            .sendToServer(new PacketConfigureHero(hero, selectedKey, alignment, bind && alignment == Alignment.HERO));
+        mc.displayGuiScreen(null);
+    }
+
+    /** Dev self-test hook: makes the same choices a player would click, then presses Apply. */
+    public void selectAndApply(String heroKey, Alignment newAlignment, boolean bindToMe) {
+        selectedKey = heroKey;
+        alignment = newAlignment;
+        bind = bindToMe;
+        apply();
     }
 
     @Override

@@ -54,7 +54,7 @@ public class FlightController {
         double yOffset;
         double stopDist;
         if (goal != null && goal.isEntityAlive()) {
-            yOffset = goal.height * 0.5D;
+            yOffset = 0.0D; // feet level with the target's: aiming higher makes two fliers out-climb each other forever
             stopDist = 1.5D;
         } else {
             goal = hero.isSitting() ? null : hero.getOwner();

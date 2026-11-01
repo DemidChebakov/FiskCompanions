@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraftforge.common.MinecraftForge;
 
 import com.dchebakov.fiskcompanions.client.gui.GuiHeroConfigurator;
+import com.dchebakov.fiskcompanions.client.gui.GuiHeroSpawner;
 import com.dchebakov.fiskcompanions.client.render.RenderFiskHero;
 import com.dchebakov.fiskcompanions.client.render.SpeedTrailRenderer;
 import com.dchebakov.fiskcompanions.debug.ClientSelfTestLauncher;
@@ -25,6 +26,12 @@ public class ClientProxy extends CommonProxy {
                 .bus()
                 .register(new ClientSelfTestLauncher());
         }
+    }
+
+    @Override
+    public void openSpawner() {
+        Minecraft.getMinecraft()
+            .displayGuiScreen(new GuiHeroSpawner());
     }
 
     @Override

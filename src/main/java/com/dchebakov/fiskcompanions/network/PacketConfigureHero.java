@@ -5,6 +5,7 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ChatComponentTranslation;
 
+import com.dchebakov.fiskcompanions.FiskCompanions;
 import com.dchebakov.fiskcompanions.compat.fisk.FiskBridge;
 import com.dchebakov.fiskcompanions.entity.Alignment;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
@@ -62,6 +63,12 @@ public class PacketConfigureHero implements IMessage {
             if (!(entity instanceof EntityFiskHero) || held == null
                 || !(held.getItem() instanceof ItemHeroConfigurator)
                 || player.getDistanceSqToEntity(entity) > MAX_REACH_SQ) {
+                FiskCompanions.LOG.info(
+                    "Ignored configure request from {}: entity={} held={} distSq={}",
+                    player.getCommandSenderName(),
+                    entity,
+                    held,
+                    entity != null ? player.getDistanceSqToEntity(entity) : -1);
                 return null;
             }
             EntityFiskHero hero = (EntityFiskHero) entity;

@@ -36,31 +36,58 @@ from Fisk's Heroes or from any heropack you have installed, and uses that suit's
 Other launchers work the same way: put both jars in `mods/` and heropack zips in `fiskheroes/`.
 
 ### 3. Get the Hero Configurator
-The Hero Configurator (a gold star icon) is the only tool you need.
+The Hero Configurator (a gold star icon) is the only tool you need. Right-click with it to open the Hero Spawner menu,
+or right-click a character with it to change that character.
 - **Creative mode:** find it in the **Tools** tab.
 - **Survival mode:** there's no crafting recipe yet. Use a command (cheats must be on):
   ```
   /give @p fiskcompanions:hero_configurator
   ```
 
-### 4. Summon a character
-Hold the Configurator, **sneak (Shift) and right-click the ground**.
-A character in a random suit appears. It is a **Hero** and belongs to you (it's "bound" to you).
+### 4. Open the Hero Spawner
+Hold the Configurator and **right-click** (into the air or at the ground). The **Hero Spawner** menu opens. It has three
+tabs at the top: **Spawn**, **Squads** and **Settings**. **Done** closes it.
 
-### 5. Choose the suit and the side
-Hold the Configurator and **right-click the character** (without sneaking). This window opens:
+#### Spawn tab: one character, or several of the same
+![Spawn tab](docs/images/spawner-spawn.png)
+
+1. **Search box**: type part of a name, for example `hulk`, `iron` or `flash`.
+2. **List**: scroll with the mouse wheel and **click a suit**. The grey word in front is the heropack it comes from.
+3. **Preview** (left): the selected suit on a 3D figure, already transformed (Hulk green and big, Iron Man nanites
+   on). **Hold the left mouse button on it and drag** to turn it.
+4. **Hero / Villain**: which side the character is on.
+5. **Bind to me**: Heroes you spawn belong to you (they follow and protect you).
+6. **- Count +**: how many to spawn at once (1-10).
+7. **Random hero**: picks a random suit.
+8. **Spawn**: the characters appear in front of you.
+9. **Add to squad**: adds the selected suit (with its side) to the squad chosen on the Squads tab.
+
+#### Squads tab: spawn a whole team with one button
+![Squads tab](docs/images/spawner-squads.png)
+
+- Three squads are ready to use: **Avengers**, **Justice League** and **Villains**.
+- Click a squad on the left, then **Spawn squad** spawns everyone in it at once.
+- **New** makes an empty squad; **Delete** removes the selected one. Type in the box under the list to **rename** it.
+- Click a member on the right, then **Remove member** or **Hero / Villain** to switch its side.
+- To add members, go to the **Spawn** tab, pick a suit and side, and press **Add to squad**.
+- Squads are saved on your computer (`config/fiskcompanions-squads.json`), so they work in every world. Members from
+  a heropack you don't have installed are shown greyed out and skipped.
+
+#### Settings tab: friendly fire
+![Settings tab](docs/images/spawner-settings.png)
+
+| Setting | OFF (default) | ON |
+|---|---|---|
+| **Characters fight back against players** | You can hit your heroes, but they never turn on you | A character you hit fights you for 30 seconds |
+| **Friendly fire between characters** | Stray hits between characters on the same side (a missed web, a blast) do nothing | They hurt each other and fight back |
+
+The settings are saved with the world. In singleplayer you can always change them; on a server only operators can.
+
+### 5. Change a character that's already there
+Hold the Configurator and **right-click the character**. A smaller window opens where you pick a new suit, switch
+Hero/Villain and bind it to you, then press **Apply**. Only the owner (or a player in Creative) can change a character.
 
 ![Hero Configurator](docs/images/configurator.png)
-
-1. **Search box** (top): type part of a name, for example `hulk`, `iron` or `flash`.
-2. **List**: scroll with the mouse wheel and **click a suit**. The grey word in front is the heropack it comes from.
-3. **Preview** (left): shows the selected suit on a 3D figure, already transformed (Hulk green and big, Iron Man
-   nanites on). It turns slowly. **Hold the left mouse button on it and drag** to turn it yourself.
-4. **Hero / Villain button**: click to switch sides.
-5. **Bind to me**: makes you the owner. This only applies to Heroes.
-6. Click **Apply**. The character changes suit right away.
-
-Only the owner (or a player in Creative) can change a character.
 
 ### 6. What the characters do
 **A Hero (your partner):**
@@ -111,8 +138,8 @@ Mk50 nanites) transform by themselves. Strength, healing factor and resistances 
 | What | How |
 |---|---|
 | Stay here / follow me | **Sneak + right-click** your Hero with an **empty hand**. A chat message confirms it |
-| Change suit or side | Right-click with the Configurator |
-| Make a new one | Sneak + right-click the ground with the Configurator |
+| Change suit or side | Right-click the character with the Configurator |
+| Spawn characters or a squad | Right-click anywhere else with the Configurator |
 | Get rid of one | Defeat it. Characters never despawn on their own, and their suits are never dropped |
 
 ### 8. Quick troubleshooting
@@ -123,6 +150,8 @@ Mk50 nanites) transform by themselves. Strength, healing factor and resistances 
 | "Only this character's owner can reconfigure it" | Someone else owns it. Ask them, or use Creative |
 | My Hero doesn't follow | It's set to stay. Sneak + right-click it with an empty hand |
 | A Villain ignores me | You're in Creative, or the difficulty is Peaceful |
+| My heroes keep hurting each other | Turn **Friendly fire between characters** OFF on the Settings tab |
+| The Settings buttons are grey | On a server only operators can change them |
 
 ### Multiplayer
 Install the same jars and heropacks on the **server and on every player's game**. Server play has not been tested yet.

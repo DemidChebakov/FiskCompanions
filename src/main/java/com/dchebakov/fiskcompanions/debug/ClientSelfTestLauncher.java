@@ -9,6 +9,7 @@ import net.minecraft.world.WorldType;
 
 import com.dchebakov.fiskcompanions.FiskCompanions;
 import com.dchebakov.fiskcompanions.client.gui.GuiHeroConfigurator;
+import com.dchebakov.fiskcompanions.client.gui.GuiHeroSpawner;
 import com.dchebakov.fiskcompanions.compat.fisk.FiskBridge;
 import com.dchebakov.fiskcompanions.entity.Alignment;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
@@ -28,6 +29,7 @@ public class ClientSelfTestLauncher {
 
     private boolean launched;
     private int guiTicks = -1;
+    private int spawnerTicks = -1;
     private int menuTicks;
 
     /** Opens the real configurator for the requested mob, screenshots it, then applies a choice through the GUI. */
@@ -67,6 +69,39 @@ public class ClientSelfTestLauncher {
         }
     }
 
+    /** Opens the real spawner menu, screenshots each tab, then spawns the Avengers squad through it. */
+    private void driveSpawnerTest(Minecraft mc) {
+        if (Gallery.takeSpawnerRequest()) {
+            FiskCompanions.proxy.openSpawner();
+            spawnerTicks = 0;
+            return;
+        }
+        if (spawnerTicks < 0 || !(mc.currentScreen instanceof GuiHeroSpawner)) {
+            return;
+        }
+        GuiHeroSpawner gui = (GuiHeroSpawner) mc.currentScreen;
+        ++spawnerTicks;
+        if (spawnerTicks == 2) {
+            gui.showTab(GuiHeroSpawner.TAB_SPAWN);
+        } else if (spawnerTicks == 15) {
+            shot(mc, "fc-spawner-spawn.png");
+            gui.showTab(GuiHeroSpawner.TAB_SQUADS);
+        } else if (spawnerTicks == 22) {
+            shot(mc, "fc-spawner-squads.png");
+            gui.showTab(GuiHeroSpawner.TAB_SETTINGS);
+        } else if (spawnerTicks == 29) {
+            shot(mc, "fc-spawner-settings.png");
+            gui.showTab(GuiHeroSpawner.TAB_SQUADS);
+        } else if (spawnerTicks == 34) {
+            gui.spawnSquadNamed("Avengers");
+            spawnerTicks = -1;
+        }
+    }
+
+    private static void shot(Minecraft mc, String name) {
+        ScreenShotHelper.saveScreenshot(mc.mcDataDir, name, mc.displayWidth, mc.displayHeight, mc.getFramebuffer());
+    }
+
     @SubscribeEvent
     public void onClientTick(TickEvent.ClientTickEvent event) {
         Minecraft mc = Minecraft.getMinecraft();
@@ -84,6 +119,7 @@ public class ClientSelfTestLauncher {
         }
         if (event.phase == TickEvent.Phase.END && mc.theWorld != null) {
             driveGuiTest(mc);
+            driveSpawnerTest(mc);
         }
         if (launched || event.phase != TickEvent.Phase.END || !(mc.currentScreen instanceof GuiMainMenu)) {
             return;

@@ -8,6 +8,9 @@ import com.dchebakov.fiskcompanions.debug.SelfTest;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
 import com.dchebakov.fiskcompanions.item.ItemHeroConfigurator;
 import com.dchebakov.fiskcompanions.network.PacketConfigureHero;
+import com.dchebakov.fiskcompanions.network.PacketSettingsSync;
+import com.dchebakov.fiskcompanions.network.PacketSpawnHeroes;
+import com.dchebakov.fiskcompanions.network.PacketUpdateSettings;
 
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
@@ -33,6 +36,9 @@ public class CommonProxy {
 
         network = NetworkRegistry.INSTANCE.newSimpleChannel(FiskCompanions.MODID);
         network.registerMessage(PacketConfigureHero.Handler.class, PacketConfigureHero.class, 0, Side.SERVER);
+        network.registerMessage(PacketSpawnHeroes.Handler.class, PacketSpawnHeroes.class, 1, Side.SERVER);
+        network.registerMessage(PacketUpdateSettings.Handler.class, PacketUpdateSettings.class, 2, Side.SERVER);
+        network.registerMessage(PacketSettingsSync.Handler.class, PacketSettingsSync.class, 3, Side.CLIENT);
     }
 
     public void init(FMLInitializationEvent event) {}
@@ -57,4 +63,7 @@ public class CommonProxy {
 
     /** Client-only: opens the configurator screen. No-op on a dedicated server. */
     public void openConfigurator(EntityFiskHero hero) {}
+
+    /** Client-only: opens the spawner menu. No-op on a dedicated server. */
+    public void openSpawner() {}
 }

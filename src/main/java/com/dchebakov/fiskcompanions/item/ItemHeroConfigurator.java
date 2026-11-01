@@ -1,24 +1,20 @@
 package com.dchebakov.fiskcompanions.item;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.ChatComponentTranslation;
-import net.minecraft.util.Facing;
 import net.minecraft.world.World;
 
-import com.dchebakov.fiskcompanions.compat.fisk.FiskBridge;
-import com.dchebakov.fiskcompanions.entity.Alignment;
+import com.dchebakov.fiskcompanions.CommonProxy;
+import com.dchebakov.fiskcompanions.FiskCompanions;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
-import com.fiskmods.heroes.common.hero.HeroIteration;
+import com.dchebakov.fiskcompanions.network.PacketSettingsSync;
 
 /**
- * Right-click a hero mob to open the configurator (handled in {@link EntityFiskHero#interact}). Sneak + right-click a
- * block to summon a new hero bound to you.
+ * Right-click anywhere (air or ground) to open the spawner menu; right-click a character to open its configurator
+ * (handled in {@link EntityFiskHero#interact}, which runs first).
  */
 public class ItemHeroConfigurator extends Item {
 
@@ -30,40 +26,24 @@ public class ItemHeroConfigurator extends Item {
     }
 
     @Override
+    public ItemStack onItemRightClick(ItemStack stack, World world, EntityPlayer player) {
+        openSpawner(world, player);
+        return stack;
+    }
+
+    @Override
     public boolean onItemUse(ItemStack stack, EntityPlayer player, World world, int x, int y, int z, int side,
         float hitX, float hitY, float hitZ) {
-        if (!player.isSneaking()) {
-            return false;
-        }
-        if (world.isRemote) {
-            return true;
-        }
-        List<HeroIteration> heroes = FiskBridge.allIterations();
-        if (heroes.isEmpty()) {
-            player.addChatMessage(new ChatComponentTranslation("fiskcompanions.msg.no_heroes"));
-            return true;
-        }
-        // Prefer suits with a helmet for random summons; heroes without one show the bare Steve head.
-        List<HeroIteration> helmeted = new ArrayList<>();
-        for (HeroIteration iter : heroes) {
-            if (FiskBridge.hasHelmet(iter)) {
-                helmeted.add(iter);
-            }
-        }
-        if (!helmeted.isEmpty()) {
-            heroes = helmeted;
-        }
-        EntityFiskHero hero = new EntityFiskHero(world);
-        hero.setLocationAndAngles(
-            x + Facing.offsetsXForSide[side] + 0.5D,
-            y + Facing.offsetsYForSide[side],
-            z + Facing.offsetsZForSide[side] + 0.5D,
-            player.rotationYaw + 180.0F,
-            0.0F);
-        hero.setAlignment(Alignment.HERO);
-        hero.setOwnerId(player.getUniqueID());
-        hero.setHero(heroes.get(world.rand.nextInt(heroes.size())));
-        world.spawnEntityInWorld(hero);
+        openSpawner(world, player); // aiming at a block: open the menu too instead of doing nothing
         return true;
+    }
+
+    private static void openSpawner(World world, EntityPlayer player) {
+        if (world.isRemote) {
+            FiskCompanions.proxy.openSpawner();
+        } else if (player instanceof EntityPlayerMP) {
+            // So the Settings tab shows this world's friendly-fire rules and whether the player may change them.
+            CommonProxy.network.sendTo(PacketSettingsSync.of((EntityPlayerMP) player), (EntityPlayerMP) player);
+        }
     }
 }

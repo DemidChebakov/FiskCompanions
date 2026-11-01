@@ -8,10 +8,12 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ChunkCoordinates;
+import net.minecraft.util.DamageSource;
 import net.minecraft.world.WorldServer;
 
 import com.dchebakov.fiskcompanions.CommonProxy;
@@ -19,6 +21,8 @@ import com.dchebakov.fiskcompanions.FiskCompanions;
 import com.dchebakov.fiskcompanions.compat.fisk.FiskBridge;
 import com.dchebakov.fiskcompanions.entity.Alignment;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
+import com.dchebakov.fiskcompanions.network.PacketSettingsSync;
+import com.dchebakov.fiskcompanions.world.CompanionSettings;
 import com.fiskmods.heroes.common.data.var.Vars;
 import com.fiskmods.heroes.common.hero.HeroIteration;
 
@@ -51,6 +55,9 @@ public final class Gallery {
     private final java.util.Map<EntityFiskHero, Integer> arrivals = new java.util.HashMap<>();
     private EntityFiskHero raceDummy;
     private int raceTicks = -1;
+    private static volatile boolean spawnerRequest;
+    private int spawnerTicks = -1;
+    private int spawnerBefore;
 
     private EntityFiskHero guiMob;
     private String guiExpected;
@@ -98,6 +105,13 @@ public final class Gallery {
         return guiPreviewKey;
     }
 
+    /** Client side: true once when the client should drive the spawner menu test. */
+    public static boolean takeSpawnerRequest() {
+        boolean b = spawnerRequest;
+        spawnerRequest = false;
+        return b;
+    }
+
     public static String takeShotRequest() {
         String s = shotRequest;
         shotRequest = null;
@@ -126,6 +140,10 @@ public final class Gallery {
         }
         if (raceTicks >= 0) {
             tickRace();
+            return;
+        }
+        if (spawnerTicks >= 0) {
+            tickSpawnerTest();
             return;
         }
         if (page < 0 || ++ticks >= PAGE_TICKS) {
@@ -222,9 +240,13 @@ public final class Gallery {
         ++guiTicks;
         if (guiTicks == 20) {
             guiEntity = guiMob.getEntityId(); // client opens the GUI, screenshots it, applies after a moment
-        } else if (guiTicks == 120) {
+        } else if (guiTicks > 40) {
             boolean pass = guiExpected.equals(guiMob.getHeroKey()) && guiMob.getAlignment() == Alignment.VILLAIN
                 && guiMob.getWornSuit() != null;
+            // Wait for the client's Apply (its timing depends on when the screen opened), up to 10 seconds.
+            if (!pass && guiTicks < 220) {
+                return;
+            }
             String result = String.format(
                 "configurator GUI test: %s (hero=%s alignment=%s suit=%s, expected %s VILLAIN)",
                 pass ? "PASS" : "FAIL",
@@ -414,8 +436,119 @@ public final class Gallery {
             raceTicks = -1;
             player.capabilities.isFlying = false;
             player.sendPlayerAbilities();
-            finish();
+            startSpawnerTest();
         }
+    }
+
+    /**
+     * Spawner menu check: the client opens the real menu, screenshots its tabs and presses "Spawn squad: Avengers";
+     * the server then counts the characters that appeared.
+     */
+    private void startSpawnerTest() {
+        player.playerNetServerHandler.setPlayerLocation(cx, cy, cz + 6.0D, 180.0F, 15.0F);
+        player.inventory
+            .setInventorySlotContents(player.inventory.currentItem, new ItemStack(CommonProxy.configurator));
+        player.inventoryContainer.detectAndSendChanges();
+        CommonProxy.network.sendTo(PacketSettingsSync.of(player), player);
+        spawnerBefore = countCharacters();
+        spawnerRequest = true;
+        spawnerTicks = 0;
+    }
+
+    private int countCharacters() {
+        int n = 0;
+        for (Object o : world.loadedEntityList) {
+            if (o instanceof EntityFiskHero && ((EntityFiskHero) o).isEntityAlive()) ++n;
+        }
+        return n;
+    }
+
+    private void tickSpawnerTest() {
+        if (++spawnerTicks < 120) {
+            return;
+        }
+        int expected = 0;
+        for (String key : AVENGERS) {
+            if (FiskBridge.lookup(key) != null) ++expected;
+        }
+        int spawned = countCharacters() - spawnerBefore;
+        String result = String.format(
+            "spawner squad test: %s (spawned %d, Avengers members installed %d)",
+            spawned == expected && expected > 0 ? "PASS" : "FAIL",
+            spawned,
+            expected);
+        FiskCompanions.LOG.info("[gallery] {}", result);
+        index.add(result);
+        for (Object o : new ArrayList<Object>(world.loadedEntityList)) {
+            if (o instanceof EntityFiskHero) ((EntityFiskHero) o).setDead();
+        }
+        spawnerTicks = -1;
+        friendlyFireTest();
+        finish();
+    }
+
+    private static final String[] AVENGERS = { "fiskheroes:iron_man", "fiskheroes:captain_america", "secretheroes:hulk",
+        "fiskheroes:black_panther", "fiskheroes:vision", "fiskheroes:falcon", "fiskheroes:spider_man",
+        "fiskheroes:doctor_strange" };
+
+    /** All four friendly-fire rule combinations, checked by direct hits on the server. */
+    private void friendlyFireTest() {
+        CompanionSettings rules = CompanionSettings.get(world);
+        boolean savedFight = rules.fightBackPlayers, savedAlly = rules.allyFriendlyFire;
+        player.setGameType(net.minecraft.world.WorldSettings.GameType.SURVIVAL);
+        String[] names = { "ally fire OFF: no damage", "ally fire ON: damage + retaliation",
+            "fight back OFF: no retaliation", "fight back ON: retaliation" };
+        for (int c = 0; c < 4; ++c) {
+            rules.set(c == 3, c == 1);
+            EntityFiskHero a = testMob(-2.0D), b = testMob(2.0D);
+            float before = b.getHealth();
+            if (c < 2) {
+                b.hurtResistantTime = 0;
+                b.attackEntityFrom(DamageSource.causeMobDamage(a), 4.0F);
+            } else {
+                b.hurtResistantTime = 0;
+                b.attackEntityFrom(DamageSource.causePlayerDamage(player), 4.0F);
+            }
+            boolean hurt = b.getHealth() < before;
+            Entity target = b.getAttackTarget();
+            boolean pass;
+            switch (c) {
+                case 0:
+                    pass = !hurt && target == null;
+                    break;
+                case 1:
+                    pass = hurt && target == a;
+                    break;
+                case 2:
+                    pass = hurt && target != player;
+                    break;
+                default:
+                    pass = hurt && target == player;
+                    break;
+            }
+            String result = String.format(
+                "friendly fire test [%s]: %s (hurt=%s target=%s)",
+                names[c],
+                pass ? "PASS" : "FAIL",
+                hurt,
+                target == null ? "none" : target == player ? "player" : target == a ? "ally" : "other");
+            FiskCompanions.LOG.info("[gallery] {}", result);
+            index.add(result);
+            a.setDead();
+            b.setDead();
+        }
+        rules.set(savedFight, savedAlly);
+        player.setGameType(net.minecraft.world.WorldSettings.GameType.CREATIVE);
+    }
+
+    private EntityFiskHero testMob(double dx) {
+        EntityFiskHero mob = new EntityFiskHero(world);
+        mob.setLocationAndAngles(cx + dx, cy, cz - 30.0D, 0.0F, 0.0F);
+        mob.setAlignment(Alignment.HERO);
+        mob.setSitting(true);
+        mob.setHero(heroes.get(0));
+        world.spawnEntityInWorld(mob);
+        return mob;
     }
 
     private void finish() {

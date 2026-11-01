@@ -41,6 +41,7 @@ import com.dchebakov.fiskcompanions.entity.ai.SizeController;
 import com.dchebakov.fiskcompanions.entity.ai.SpeedController;
 import com.dchebakov.fiskcompanions.entity.ai.WeaponController;
 import com.dchebakov.fiskcompanions.item.ItemHeroConfigurator;
+import com.dchebakov.fiskcompanions.world.CompanionSettings;
 import com.fiskmods.heroes.common.data.IDataHolder;
 import com.fiskmods.heroes.common.data.var.DataContainer;
 import com.fiskmods.heroes.common.data.var.DataSyncer;
@@ -371,17 +372,48 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         return hit;
     }
 
+    private static final int GRUDGE_TICKS = 600;
+    /** Someone this character fights back against despite being "on the same team" (see the friendly-fire rules). */
+    private UUID grudgeId;
+    private int grudgeUntil;
+
     @Override
     public boolean attackEntityFrom(DamageSource source, float amount) {
+        Entity attacker = source.getEntity();
+        boolean grudge = false;
+        if (!worldObj.isRemote && attacker instanceof EntityLivingBase && attacker != this) {
+            CompanionSettings rules = CompanionSettings.get(worldObj);
+            if (attacker instanceof EntityFiskHero && ((EntityFiskHero) attacker).getAlignment() == getAlignment()) {
+                if (!rules.allyFriendlyFire) {
+                    return false; // an ally's stray hit or blast: no damage, no infighting
+                }
+                grudge = true;
+            } else if (attacker instanceof EntityPlayer && rules.fightBackPlayers
+                && !((EntityPlayer) attacker).capabilities.isCreativeMode) {
+                    grudge = true;
+                }
+        }
         if (!super.attackEntityFrom(source, amount)) {
             return false;
         }
         powers.onHurt();
+        if (grudge) {
+            grudgeId = attacker.getUniqueID();
+            grudgeUntil = ticksExisted + GRUDGE_TICKS;
+            setAttackTarget((EntityLivingBase) attacker);
+        }
         return true;
+    }
+
+    private boolean holdsGrudge(Entity other) {
+        return grudgeId != null && ticksExisted < grudgeUntil && grudgeId.equals(other.getUniqueID());
     }
 
     @Override
     public boolean isOnSameTeam(EntityLivingBase other) {
+        if (holdsGrudge(other)) {
+            return false;
+        }
         if (other instanceof EntityFiskHero) {
             return ((EntityFiskHero) other).getAlignment() == getAlignment();
         }

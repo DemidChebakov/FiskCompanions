@@ -47,6 +47,10 @@ public final class Gallery {
     private final List<EntityFiskHero> fliers = new ArrayList<>();
     private int flightTicks = -1;
     private EntityFiskHero flightDummy;
+    private final List<EntityFiskHero> racers = new ArrayList<>();
+    private final java.util.Map<EntityFiskHero, Integer> arrivals = new java.util.HashMap<>();
+    private EntityFiskHero raceDummy;
+    private int raceTicks = -1;
 
     private EntityFiskHero guiMob;
     private String guiExpected;
@@ -118,6 +122,10 @@ public final class Gallery {
         }
         if (flightTicks >= 0) {
             tickFlightTest();
+            return;
+        }
+        if (raceTicks >= 0) {
+            tickRace();
             return;
         }
         if (page < 0 || ++ticks >= PAGE_TICKS) {
@@ -319,6 +327,91 @@ public final class Gallery {
             fliers.clear();
             flightDummy.setDead();
             flightTicks = -1;
+            startRace();
+        }
+    }
+
+    /**
+     * Super speed check: speedsters and one normal hero race 60 blocks to a villain dummy pinned on the ground. Logs
+     * each racer's top speed level and arrival tick; screenshots from the side catch the speed trails.
+     */
+    private void startRace() {
+        raceDummy = new EntityFiskHero(world);
+        raceDummy.setLocationAndAngles(cx, cy, cz - 18.0D, 0.0F, 0.0F);
+        raceDummy.setAlignment(Alignment.VILLAIN);
+        raceDummy.setSitting(true);
+        raceDummy.setHero(heroes.get(0));
+        world.spawnEntityInWorld(raceDummy);
+        String[] wanted = { "fiskheroes:the_flash", "fiskheroes:reverse_flash", "fiskheroes:zoom",
+            "secretheroes:impulse", "fiskheroes:godspeed", "fiskheroes:captain_america" };
+        int i = 0;
+        for (String part : wanted) {
+            for (HeroIteration iter : heroes) {
+                if (FiskBridge.keyOf(iter)
+                    .startsWith(part)) {
+                    EntityFiskHero mob = new EntityFiskHero(world);
+                    mob.setLocationAndAngles(cx - 5.0D + i * 2.0D, cy, cz + 10.0D, 180.0F, 0.0F);
+                    mob.setAlignment(Alignment.HERO);
+                    mob.setHero(iter);
+                    world.spawnEntityInWorld(mob);
+                    racers.add(mob);
+                    ++i;
+                    break;
+                }
+            }
+        }
+        raceTicks = 0;
+    }
+
+    private void tickRace() {
+        ++raceTicks;
+        player.playerNetServerHandler.setPlayerLocation(cx + 14.0D, cy + 3.0D, cz - 4.0D, 90.0F, 10.0F);
+        raceDummy.setPositionAndRotation(cx, cy, cz - 18.0D, 0.0F, 0.0F);
+        raceDummy.motionX = raceDummy.motionY = raceDummy.motionZ = 0.0D;
+        raceDummy.setHealth(raceDummy.getMaxHealth());
+        raceDummy.setAttackTarget(null);
+        for (EntityFiskHero mob : racers) {
+            if (!arrivals.containsKey(mob) && mob.getDistanceToEntity(raceDummy) <= 3.5D) {
+                arrivals.put(mob, raceTicks);
+            }
+        }
+        if (raceTicks == 8 || raceTicks == 14) {
+            shotRequest = "fc-race-" + raceTicks;
+        }
+        if (raceTicks % 5 == 0 && raceTicks <= 30) {
+            for (EntityFiskHero mob : racers) {
+                FiskCompanions.LOG.info(
+                    "[gallery] race t={} {} speeding={} level={}/{} pos=({}, {}, {}) dist={} moveSpeed={}",
+                    raceTicks,
+                    mob.getHeroKey(),
+                    mob.getSpeed()
+                        .isSpeeding(),
+                    Vars.SPEED.get(mob),
+                    mob.getSpeed()
+                        .maxLevel(),
+                    String.format("%.1f", mob.posX),
+                    String.format("%.1f", mob.posY),
+                    String.format("%.1f", mob.posZ),
+                    String.format("%.1f", mob.getDistanceToEntity(raceDummy)),
+                    String.format(
+                        "%.3f",
+                        mob.getEntityAttribute(net.minecraft.entity.SharedMonsterAttributes.movementSpeed)
+                            .getAttributeValue()));
+            }
+        }
+        if (raceTicks >= 300 || arrivals.size() == racers.size()) {
+            for (EntityFiskHero mob : racers) {
+                String line = String.format(
+                    "race: %s arrived after %s ticks",
+                    mob.getHeroKey(),
+                    arrivals.containsKey(mob) ? String.valueOf(arrivals.get(mob)) : "never");
+                FiskCompanions.LOG.info("[gallery] {}", line);
+                index.add(line);
+                mob.setDead();
+            }
+            racers.clear();
+            raceDummy.setDead();
+            raceTicks = -1;
             player.capabilities.isFlying = false;
             player.sendPlayerAbilities();
             finish();

@@ -85,6 +85,13 @@ Manhunter are fast, and the Anti-Monitor is very fast. Flying far away is faster
 
 ![Flying heroes](docs/images/flight.png)
 
+**Speedsters.** Characters with super speed (The Flash, Reverse-Flash, Zoom, Impulse, Godspeed, any heropack speedster)
+run at their suit's top speed level when their target or owner is far away, leaving lightning trails in the suit's
+colours. They slow down as they get close and fight at normal speed. Faster suits have more speed levels: in a 28-block
+race Zoom arrives in about half a second, while a normal hero needs more than two seconds.
+
+![Speedsters racing](docs/images/speedsters.png)
+
 **Weapons and gadgets.** Characters use the gear that comes with their suit:
 | Character | What they use |
 |---|---|
@@ -146,6 +153,10 @@ See [docs/fisk-internals.md](docs/fisk-internals.md).
   Size-changing heroes (Hulk) grow to full size.
 - Flight speed scales with the suit's flight modifier: `speed` (default 0.1) when cruising and `boostSpeed` (default 0.2)
   when boosting; when no flight modifier is currently enabled, the suit's declared one is used.
+- Super speed: the mob sets `Vars.SPEEDING` and `Vars.SPEED` (up to `SpeedsterHelper.getMaxSpeedSetting`); Fisk's
+  `SHAttributes` then raises movement speed for any entity. Over 12 blocks it runs at full level, half level over
+  4 blocks, off in melee. Fisk only draws lightning trails for players, so `SpeedTrailRenderer` draws them from Fisk's
+  recorded trail points (`TrailHandler`) in the suit's trail colour.
 - Gadgets (`fiskheroes:equipment`): `Equipment.onUsed` spawns the projectile for any entity; the mob keeps its own
   per-gadget cooldowns. Rapid webs call `EquipmentRapidWebs.shoot` directly.
 - Weapons (the suit's primary equipment): the melee weapon is held up close (Fisk's punch system applies weapon

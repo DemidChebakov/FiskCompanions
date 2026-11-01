@@ -1,9 +1,11 @@
 package com.dchebakov.fiskcompanions;
 
 import net.minecraft.client.Minecraft;
+import net.minecraftforge.common.MinecraftForge;
 
 import com.dchebakov.fiskcompanions.client.gui.GuiHeroConfigurator;
 import com.dchebakov.fiskcompanions.client.render.RenderFiskHero;
+import com.dchebakov.fiskcompanions.client.render.SpeedTrailRenderer;
 import com.dchebakov.fiskcompanions.debug.ClientSelfTestLauncher;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
 
@@ -17,6 +19,7 @@ public class ClientProxy extends CommonProxy {
     public void preInit(FMLPreInitializationEvent event) {
         super.preInit(event);
         RenderingRegistry.registerEntityRenderingHandler(EntityFiskHero.class, new RenderFiskHero());
+        MinecraftForge.EVENT_BUS.register(new SpeedTrailRenderer());
         if (Boolean.getBoolean("fiskcompanions.selftest")) {
             FMLCommonHandler.instance()
                 .bus()

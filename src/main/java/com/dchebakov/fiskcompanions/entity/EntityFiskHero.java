@@ -38,6 +38,7 @@ import com.dchebakov.fiskcompanions.entity.ai.AIOwnerHurtTarget;
 import com.dchebakov.fiskcompanions.entity.ai.FlightController;
 import com.dchebakov.fiskcompanions.entity.ai.PowerController;
 import com.dchebakov.fiskcompanions.entity.ai.SizeController;
+import com.dchebakov.fiskcompanions.entity.ai.SpeedController;
 import com.dchebakov.fiskcompanions.entity.ai.WeaponController;
 import com.dchebakov.fiskcompanions.item.ItemHeroConfigurator;
 import com.fiskmods.heroes.common.data.IDataHolder;
@@ -70,6 +71,7 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
     private final FlightController flight = new FlightController(this);
     private final SizeController size = new SizeController(this);
     private final WeaponController weapons = new WeaponController(this);
+    private final SpeedController speed = new SpeedController(this);
     private float appliedScale = 1.0F;
 
     public EntityFiskHero(World world) {
@@ -183,6 +185,7 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
             restoreSuitIfMissing();
             size.update();
             flight.update();
+            speed.update();
             weapons.update();
             powers.update();
             if (TRACE != null && ticksExisted % 20 == 0 && getHeroKey().contains(TRACE)) {
@@ -228,6 +231,10 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
             appliedScale = scale;
             setSize(0.6F * scale, 1.8F * scale);
         }
+    }
+
+    public SpeedController getSpeed() {
+        return speed;
     }
 
     public WeaponController getWeapons() {

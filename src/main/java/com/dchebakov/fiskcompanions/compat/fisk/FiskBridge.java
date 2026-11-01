@@ -65,7 +65,19 @@ public final class FiskBridge {
         sb.append("scale=")
             .append(Vars.SCALE.get(entity))
             .append(" sizeState=")
-            .append(Vars.SIZE_STATE.get(entity));
+            .append(Vars.SIZE_STATE.get(entity))
+            .append(" speeding=")
+            .append(Vars.SPEEDING.get(entity))
+            .append(" speed=")
+            .append(Vars.SPEED.get(entity))
+            .append(" sprinting=")
+            .append(entity.isSprinting())
+            .append(" moving=")
+            .append(Vars.MOVING.get(entity))
+            .append(" trail=")
+            .append(
+                com.fiskmods.heroes.common.hero.speedster.TrailHandler.getTrail(entity)
+                    .size());
         if (hero != null) {
             hero.getModifierEntries()
                 .filter(e -> e.modifier == Modifier.TRANSFORMATION)

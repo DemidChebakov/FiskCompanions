@@ -38,6 +38,7 @@ import com.dchebakov.fiskcompanions.entity.ai.AIOwnerHurtTarget;
 import com.dchebakov.fiskcompanions.entity.ai.FlightController;
 import com.dchebakov.fiskcompanions.entity.ai.PowerController;
 import com.dchebakov.fiskcompanions.entity.ai.SizeController;
+import com.dchebakov.fiskcompanions.entity.ai.WeaponController;
 import com.dchebakov.fiskcompanions.item.ItemHeroConfigurator;
 import com.fiskmods.heroes.common.data.IDataHolder;
 import com.fiskmods.heroes.common.data.var.DataContainer;
@@ -68,6 +69,7 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
     private final PowerController powers = new PowerController(this);
     private final FlightController flight = new FlightController(this);
     private final SizeController size = new SizeController(this);
+    private final WeaponController weapons = new WeaponController(this);
     private float appliedScale = 1.0F;
 
     public EntityFiskHero(World world) {
@@ -181,6 +183,7 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
             restoreSuitIfMissing();
             size.update();
             flight.update();
+            weapons.update();
             powers.update();
             if (TRACE != null && ticksExisted % 20 == 0 && getHeroKey().contains(TRACE)) {
                 EntityLivingBase t = getAttackTarget();
@@ -205,6 +208,19 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         FiskBridge.tickSuit(this, wornSuit, TickEvent.Phase.END);
     }
 
+    /**
+     * Fisk aims beams, projectiles, gadgets and guns along the look vector: turn body, head and pitch to the target.
+     */
+    public void faceEntity(Entity target) {
+        double dx = target.posX - posX;
+        double dy = target.boundingBox.minY + target.height * 0.6D - (posY + getEyeHeight());
+        double dz = target.posZ - posZ;
+        double horiz = MathHelper.sqrt_double(dx * dx + dz * dz);
+        float yaw = (float) (Math.atan2(dz, dx) * 180.0D / Math.PI) - 90.0F;
+        rotationYaw = rotationYawHead = renderYawOffset = yaw;
+        rotationPitch = (float) -(Math.atan2(dy, horiz) * 180.0D / Math.PI);
+    }
+
     /** Fisk only resizes players, so scale this mob's hitbox from the synced scale var on both sides. */
     private void applyScale() {
         float scale = Vars.SCALE.get(this);
@@ -212,6 +228,10 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
             appliedScale = scale;
             setSize(0.6F * scale, 1.8F * scale);
         }
+    }
+
+    public WeaponController getWeapons() {
+        return weapons;
     }
 
     public SizeController getSize() {

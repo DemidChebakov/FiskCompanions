@@ -246,6 +246,24 @@ public final class FiskBridge {
         return hero != null ? hero.getEnabledModifier(entity, modifier) : null;
     }
 
+    /** First entry the hero's suit declares for any of the modifiers, enabled or not. */
+    public static ModifierEntry declared(EntityLivingBase entity, Modifier... modifiers) {
+        Hero hero = HeroTracker.get(entity);
+        if (hero == null) {
+            return null;
+        }
+        for (Modifier modifier : modifiers) {
+            ModifierEntry entry = hero.getModifierEntries()
+                .filter(e -> e.modifier == modifier)
+                .findFirst()
+                .orElse(null);
+            if (entry != null) {
+                return entry;
+            }
+        }
+        return null;
+    }
+
     public static boolean has(EntityLivingBase entity, Modifier modifier) {
         return enabled(entity, modifier) != null;
     }

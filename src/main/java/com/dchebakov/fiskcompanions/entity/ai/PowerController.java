@@ -1,7 +1,9 @@
 package com.dchebakov.fiskcompanions.entity.ai;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -10,7 +12,6 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.potion.Potion;
 import net.minecraft.potion.PotionEffect;
-import net.minecraft.util.MathHelper;
 
 import com.dchebakov.fiskcompanions.FiskCompanions;
 import com.dchebakov.fiskcompanions.compat.fisk.FiskBridge;
@@ -22,6 +23,10 @@ import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
 import com.fiskmods.heroes.client.pack.json.sound.SoundTrigger;
 import com.fiskmods.heroes.common.data.var.DataVar;
 import com.fiskmods.heroes.common.data.var.Vars;
+import com.fiskmods.heroes.common.equipment.Equipment;
+import com.fiskmods.heroes.common.equipment.EquipmentRapidWebs;
+import com.fiskmods.heroes.common.equipment.EquipmentSet;
+import com.fiskmods.heroes.common.equipment.EquipmentType;
 import com.fiskmods.heroes.common.hero.Hero;
 import com.fiskmods.heroes.common.hero.modifier.Modifier;
 import com.fiskmods.heroes.common.hero.power.ModifierEntry;
@@ -38,11 +43,15 @@ public class PowerController {
     private static final int RECENT_HURT_TICKS = 60;
     private static final int HEAL_COOLDOWN = 400;
     private static final int BEAM_BURST_TICKS = 60;
+    private static final double GADGET_MIN_RANGE = 3.0D;
+    private static final double GADGET_MAX_RANGE = 24.0D;
+    private static final int GADGET_MIN_COOLDOWN = 20;
     private static final int BEAM_REST_TICKS = 40;
 
     private final EntityFiskHero hero;
     private final Map<Modifier, Integer> cooldowns = new HashMap<>();
     private final Map<Modifier, Integer> beamTicks = new HashMap<>();
+    private final Map<Equipment, Integer> gadgetCooldowns = new HashMap<>();
     /** Modifiers whose port threw on this mob; skipped so one broken pack power doesn't spam the log. */
     private final Set<Modifier> broken = new HashSet<>();
     private int globalCooldown;
@@ -77,6 +86,7 @@ public class PowerController {
         setVar(Vars.AIMING, false);
         cooldowns.clear();
         beamTicks.clear();
+        gadgetCooldowns.clear();
         broken.clear();
         triedTransforms.clear();
     }
@@ -84,6 +94,9 @@ public class PowerController {
     public void update() {
         cooldowns.replaceAll((m, t) -> t - 1);
         cooldowns.values()
+            .removeIf(t -> t <= 0);
+        gadgetCooldowns.replaceAll((g, t) -> t == Integer.MAX_VALUE ? t : t - 1);
+        gadgetCooldowns.values()
             .removeIf(t -> t <= 0);
         if (globalCooldown > 0) --globalCooldown;
         if (healCooldown > 0) --healCooldown;
@@ -107,15 +120,17 @@ public class PowerController {
         boolean ranged = h.getModifiers()
             .stream()
             .anyMatch(Abilities::isRanged);
+        ranged |= hero.getWeapons()
+            .holdsGun();
         setVar(Vars.AIMING, sees && ranged && dist > 3.0D);
 
         boolean beaming = updateToggles(h, target, dist, sees);
         beaming |= updateChargedBeam(h, target, dist, sees);
         if (beaming) {
-            face(target);
+            hero.faceEntity(target);
         }
-        if (sees && globalCooldown <= 0) {
-            fireShot(h, target, dist);
+        if (sees && globalCooldown <= 0 && !fireShot(h, target, dist)) {
+            useGadget(h, target, dist);
         }
         healOwner();
     }
@@ -223,7 +238,7 @@ public class PowerController {
         return beaming;
     }
 
-    private void fireShot(Hero h, EntityLivingBase target, double dist) {
+    private boolean fireShot(Hero h, EntityLivingBase target, double dist) {
         for (ShotAbility shot : Abilities.SHOTS) {
             if (cooldowns.containsKey(shot.modifier) || broken.contains(shot.modifier)) {
                 continue;
@@ -232,7 +247,7 @@ public class PowerController {
             if (entry == null || dist > shot.range(entry)) {
                 continue;
             }
-            face(target);
+            hero.faceEntity(target);
             try {
                 shot.fire(hero, target, entry);
             } catch (RuntimeException e) {
@@ -247,8 +262,58 @@ public class PowerController {
             record("shot:" + shot.modifier.getName());
             cooldowns.put(shot.modifier, shot.cooldown(entry));
             globalCooldown = GLOBAL_COOLDOWN;
-            return;
+            return true;
         }
+        return false;
+    }
+
+    /**
+     * EQUIPMENT gadgets (batarangs, grenades, smoke pellets, throwing stars, web shooters…). {@code Equipment.onUsed}
+     * spawns the projectile for any entity; Fisk tracks gadget cooldowns client-side per player, so the mob keeps its
+     * own per gadget, from the suit's cooldown setting.
+     */
+    private boolean useGadget(Hero h, EntityLivingBase target, double dist) {
+        if (dist < GADGET_MIN_RANGE || dist > GADGET_MAX_RANGE) {
+            return false;
+        }
+        ModifierEntry entry = h.getEnabledModifier(hero, Modifier.EQUIPMENT);
+        EquipmentSet set = entry != null ? FiskBridge.prop(entry, PowerProperty.EQUIPMENT, null) : null;
+        if (set == null || set.isEmpty()) {
+            return false;
+        }
+        List<Equipment> ready = new ArrayList<>();
+        for (Equipment gadget : set) {
+            if (gadget.equipmentType != EquipmentType.FISTS && !gadgetCooldowns.containsKey(gadget)) {
+                ready.add(gadget);
+            }
+        }
+        if (ready.isEmpty()) {
+            return false;
+        }
+        Equipment gadget = ready.get(
+            hero.getRNG()
+                .nextInt(ready.size()));
+        String name = String.valueOf(EquipmentType.REGISTRY.getNameForObject(gadget.equipmentType));
+        hero.faceEntity(target);
+        try {
+            if (gadget instanceof EquipmentRapidWebs) {
+                for (int i = 0; i < 3; ++i) {
+                    ((EquipmentRapidWebs) gadget).shoot(hero); // its onUsed only arms a player's web burst
+                }
+            } else {
+                gadget.onUsed(hero);
+            }
+        } catch (RuntimeException e) {
+            gadgetCooldowns.put(gadget, Integer.MAX_VALUE);
+            FiskCompanions.LOG.warn("Gadget {} failed for hero {}; disabled on this mob", name, hero.getHeroKey(), e);
+            return false;
+        }
+        hero.swingItem();
+        gadget.dispatchSoundAtEntity(hero, SoundTrigger.USE);
+        gadgetCooldowns.put(gadget, Math.max(GADGET_MIN_COOLDOWN, gadget.getMaxCooldown()));
+        globalCooldown = GLOBAL_COOLDOWN;
+        record("gadget:" + name);
+        return true;
     }
 
     private void healOwner() {
@@ -263,18 +328,6 @@ public class PowerController {
             hero.worldObj.playSoundAtEntity(owner, "random.orb", 0.6F, 1.5F);
             healCooldown = HEAL_COOLDOWN;
         }
-    }
-
-    /** Fisk aims beams and projectiles along the look vector, so turn body, head and pitch to the target. */
-    private void face(EntityLivingBase target) {
-        double dx = target.posX - hero.posX;
-        double dy = target.boundingBox.minY + target.height * 0.6D - (hero.posY + hero.getEyeHeight());
-        double dz = target.posZ - hero.posZ;
-        double horiz = MathHelper.sqrt_double(dx * dx + dz * dz);
-        float yaw = (float) (Math.atan2(dz, dx) * 180.0D / Math.PI) - 90.0F;
-        float pitch = (float) -(Math.atan2(dy, horiz) * 180.0D / Math.PI);
-        hero.rotationYaw = hero.rotationYawHead = hero.renderYawOffset = yaw;
-        hero.rotationPitch = pitch;
     }
 
     /** Returns true if the value changed. */

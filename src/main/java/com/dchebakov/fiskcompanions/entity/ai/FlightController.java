@@ -9,6 +9,8 @@ import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
 import com.fiskmods.heroes.common.data.var.Vars;
 import com.fiskmods.heroes.common.hero.Hero;
 import com.fiskmods.heroes.common.hero.modifier.Modifier;
+import com.fiskmods.heroes.common.hero.power.ModifierEntry;
+import com.fiskmods.heroes.common.hero.power.PowerProperty;
 
 /**
  * Flight for heroes whose suit can fly. Fisk's flight modifiers only steer players, so the mob drives its own motion,
@@ -18,6 +20,8 @@ import com.fiskmods.heroes.common.hero.modifier.Modifier;
 public class FlightController {
 
     private static final double GRAVITY = 0.08D;
+    private static final double MIN_SPEED_FACTOR = 0.4D;
+    private static final double MAX_SPEED_FACTOR = 4.0D;
     /** Minimum ticks in the air before landing, and on the ground before taking off again. */
     private static final int MIN_AIR_TICKS = 60;
     private static final int MIN_GROUND_TICKS = 20;
@@ -97,7 +101,8 @@ public class FlightController {
         hero.fallDistance = 0.0F;
         double dist = MathHelper.sqrt_double(dx * dx + dy * dy + dz * dz);
         if (dist > stopDist) {
-            double speed = hero.getAttackTarget() != null ? 0.55D : 0.45D;
+            boolean boosting = dist > 6.0D;
+            double speed = (hero.getAttackTarget() != null ? 0.55D : 0.45D) * speedFactor(boosting);
             hero.motionX = hero.motionX * 0.6D + dx / dist * speed * 0.4D;
             hero.motionY = hero.motionY * 0.6D + dy / dist * speed * 0.4D + GRAVITY;
             hero.motionZ = hero.motionZ * 0.6D + dz / dist * speed * 0.4D;
@@ -113,6 +118,34 @@ public class FlightController {
             hero.motionY = GRAVITY * 0.5D;
             hero.motionZ *= 0.5D;
         }
+    }
+
+    /**
+     * The suit's own flight speed relative to Fisk's defaults: {@code speed} (default 0.1) while cruising and, for
+     * controlled flight, {@code boostSpeed} (default 0.2) when boosting; plain flight boosts by 1.2x like a sprinting
+     * player. So fast suits fly faster and slow ones slower.
+     */
+    public double speedFactor(boolean boosting) {
+        ModifierEntry entry = FiskBridge.enabled(hero, Modifier.CONTROLLED_FLIGHT);
+        if (entry == null) entry = FiskBridge.enabled(hero, Modifier.FLIGHT);
+        if (entry == null) entry = FiskBridge.enabled(hero, Modifier.PROPELLED_FLIGHT);
+        if (entry == null) {
+            // Not enabled by the hero's script right now (e.g. Anti-Monitor): use the suit's declared flight settings.
+            entry = FiskBridge.declared(hero, Modifier.CONTROLLED_FLIGHT, Modifier.FLIGHT, Modifier.PROPELLED_FLIGHT);
+        }
+        if (entry == null) {
+            return 1.0D;
+        }
+        float speed = FiskBridge.prop(entry, PowerProperty.SPEED, 0.1F);
+        double factor;
+        if (!boosting) {
+            factor = speed / 0.1D;
+        } else if (entry.modifier == Modifier.CONTROLLED_FLIGHT) {
+            factor = FiskBridge.prop(entry, PowerProperty.BOOST_SPEED, speed * 2.0F) / 0.2D;
+        } else {
+            factor = speed / 0.1D * 1.2D;
+        }
+        return Math.max(MIN_SPEED_FACTOR, Math.min(MAX_SPEED_FACTOR, factor));
     }
 
     private void setFlying(boolean value) {

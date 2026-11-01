@@ -80,7 +80,21 @@ Only the owner (or a player in Creative) can change a character.
 own flight animations: leaning forward when moving, lying flat and speeding when far away (boost), and hovering when
 close. They land again once they're near their target on the ground.
 
+Each suit flies at **its own speed**, taken from the suit's flight settings. The Atom is slow, Iron Man and Martian
+Manhunter are fast, and the Anti-Monitor is very fast. Flying far away is faster than flying close (like sprinting).
+
 ![Flying heroes](docs/images/flight.png)
+
+**Weapons and gadgets.** Characters use the gear that comes with their suit:
+| Character | What they use |
+|---|---|
+| Spider-Man (every version) | Web shooters: sticky, impact, ricochet and rapid webs |
+| Batman | Batarangs, smoke pellets, freeze grenades |
+| Deadpool | Desert Eagles at range (dual), katana up close |
+| Captain America | His shield as a melee weapon |
+| Any heropack suit | Its own gadgets and weapons, if it defines them |
+
+They throw or shoot at targets a few blocks away and switch to melee weapons up close. Characters never run out of ammo.
 
 **Powers.** Characters use their suit's real powers: flight, blasts and beams, fireballs, ice, heat vision,
 shields, blades, ground smash, Hulk's Thunderclap, and more. Suits that transform first (Hulk, Moon Knight, Iron Man
@@ -109,7 +123,8 @@ Install the same jars and heropacks on the **server and on every player's game**
 ---
 
 ## Known limitations
-- Some powers aren't used yet: telekinesis, tentacles, teleport, spells, earthquake, lightning.
+- Some powers aren't used yet: telekinesis, tentacles, teleport, spells, earthquake, lightning, web-swinging/web-zip,
+  Green Arrow's bow (archery) and shield throwing.
 - Transformations a heropack triggers **only** with its own scripted key (not Fisk's standard transformation) can't run
   on a mob. The character then stays in its untransformed look.
 - Ground smash damages and knocks back but doesn't break blocks.
@@ -129,6 +144,12 @@ See [docs/fisk-internals.md](docs/fisk-internals.md).
 - Suits with a toggle transformation are switched into their suited form. A transformation is kept only if it unlocks
   more powers or stronger punches, so "suit off" toggles (e.g. SecretHeroes speedster suits) are left alone.
   Size-changing heroes (Hulk) grow to full size.
+- Flight speed scales with the suit's flight modifier: `speed` (default 0.1) when cruising and `boostSpeed` (default 0.2)
+  when boosting; when no flight modifier is currently enabled, the suit's declared one is used.
+- Gadgets (`fiskheroes:equipment`): `Equipment.onUsed` spawns the projectile for any entity; the mob keeps its own
+  per-gadget cooldowns. Rapid webs call `EquipmentRapidWebs.shoot` directly.
+- Weapons (the suit's primary equipment): the melee weapon is held up close (Fisk's punch system applies weapon
+  damage) and guns at range, fired through Fisk's protected `ItemGun.trigger` via reflection with infinite ammo.
 - A Steve body is drawn under the suit, so partial or see-through suits look as they do on a player.
 
 ## Building from source

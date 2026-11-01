@@ -19,6 +19,7 @@ import com.dchebakov.fiskcompanions.FiskCompanions;
 import com.dchebakov.fiskcompanions.compat.fisk.FiskBridge;
 import com.dchebakov.fiskcompanions.entity.Alignment;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
+import com.fiskmods.heroes.common.data.var.Vars;
 import com.fiskmods.heroes.common.hero.HeroIteration;
 
 import cpw.mods.fml.common.FMLCommonHandler;
@@ -256,14 +257,15 @@ public final class Gallery {
         flightDummy.setSitting(true);
         flightDummy.setHero(heroes.get(0));
         world.spawnEntityInWorld(flightDummy);
-        String[] wanted = { "iron_man_mk85", "secretheroes:homelander", "martian_manhunter", "vision" };
+        String[] wanted = { "iron_man_mk85", "secretheroes:homelander", "martian_manhunter", "vision",
+            "fiskheroes:atom", "anti_monitor" };
         int i = 0;
         for (String part : wanted) {
             for (HeroIteration iter : heroes) {
                 if (FiskBridge.keyOf(iter)
                     .contains(part) && FiskBridge.canFly(iter)) {
                     EntityFiskHero mob = new EntityFiskHero(world);
-                    mob.setLocationAndAngles(cx - 4.0D + i * 1.5D, cy, cz - 22.0D, 0.0F, 0.0F);
+                    mob.setLocationAndAngles(cx - 5.0D + i * 1.5D, cy, cz - 22.0D, 0.0F, 0.0F);
                     mob.setAlignment(Alignment.HERO);
                     mob.setHero(iter);
                     world.spawnEntityInWorld(mob);
@@ -290,13 +292,23 @@ public final class Gallery {
             shotRequest = "fc-flight-" + flightTicks;
             for (EntityFiskHero mob : fliers) {
                 FiskCompanions.LOG.info(
-                    "[gallery] flight {} flying={} sprinting={} y={} distToTarget={}",
+                    "[gallery] flight {} flying={} sprinting={} y={} distToTarget={} speed={} factor={}/{} scale={}",
                     mob.getHeroKey(),
                     mob.getFlight()
                         .isFlying(),
                     mob.isSprinting(),
                     String.format("%.1f", mob.posY),
-                    String.format("%.1f", mob.getDistanceToEntity(flightDummy)));
+                    String.format("%.1f", mob.getDistanceToEntity(flightDummy)),
+                    String.format("%.2f", Math.sqrt(mob.motionX * mob.motionX + mob.motionZ * mob.motionZ)),
+                    String.format(
+                        "%.2f",
+                        mob.getFlight()
+                            .speedFactor(false)),
+                    String.format(
+                        "%.2f",
+                        mob.getFlight()
+                            .speedFactor(true)),
+                    String.format("%.2f", Vars.SCALE.get(mob)));
             }
         } else if (flightTicks == 100) {
             shotRequest = "fc-flight-arrived";

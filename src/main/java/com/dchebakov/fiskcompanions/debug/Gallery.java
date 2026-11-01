@@ -487,9 +487,9 @@ public final class Gallery {
         finish();
     }
 
-    private static final String[] AVENGERS = { "fiskheroes:iron_man", "fiskheroes:captain_america", "secretheroes:hulk",
-        "fiskheroes:black_panther", "fiskheroes:vision", "fiskheroes:falcon", "fiskheroes:spider_man",
-        "fiskheroes:doctor_strange" };
+    private static final String[] AVENGERS = { "fiskheroes:iron_man", "fiskheroes:captain_america",
+        "fiskheroes:ant_man", "fiskheroes:black_panther", "fiskheroes:vision", "fiskheroes:falcon",
+        "fiskheroes:spider_man", "fiskheroes:doctor_strange" };
 
     /** All four friendly-fire rule combinations, checked by direct hits on the server. */
     private void friendlyFireTest() {

@@ -65,7 +65,10 @@ tabs at the top: **Spawn**, **Squads** and **Settings**. **Done** closes it.
 #### Squads tab: spawn a whole team with one button
 ![Squads tab](docs/images/spawner-squads.png)
 
-- Three squads are ready to use: **Avengers**, **Justice League** and **Villains**.
+- Three squads are ready to use, all made of Fisk's Superheroes characters (no heropack needed):
+  - **Avengers**: Iron Man, Captain America, Ant-Man, Black Panther, Vision, Falcon, Spider-Man, Doctor Strange
+  - **Justice League**: Batman, Shazam, Martian Manhunter, The Flash, Black Canary, Green Arrow, The Atom
+  - **Villains**: Reverse-Flash, Zoom, Deathstroke, Captain Cold, Doctor Octopus, Crossbones, Savitar
 - Click a squad on the left, then **Spawn squad** spawns everyone in it at once.
 - **New** makes an empty squad; **Delete** removes the selected one. Type in the box under the list to **rename** it.
 - Click a member on the right, then **Remove member** or **Hero / Villain** to switch its side.

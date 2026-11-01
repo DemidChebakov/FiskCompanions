@@ -60,8 +60,13 @@ public final class Squads {
 
     private static final class Data {
 
+        /** Bumped when the presets change, so older files get the same fixes once. */
+        int presetsVersion;
         List<Squad> squads = new ArrayList<>();
     }
+
+    /** 2: presets use only Fisk's Heroes characters (no heropack heroes). */
+    private static final int PRESETS_VERSION = 2;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting()
         .create();
@@ -89,15 +94,19 @@ public final class Squads {
                 FiskCompanions.LOG.warn("Could not read {}; starting with the preset squads", f, e);
             }
         }
+        if (data != null && data.squads != null && data.presetsVersion < PRESETS_VERSION) {
+            migrate();
+        }
         if (data == null || data.squads == null) {
             data = new Data();
+            data.presetsVersion = PRESETS_VERSION;
             data.squads.add(
                 new Squad(
                     "Avengers",
                     Alignment.HERO,
                     "fiskheroes:iron_man",
                     "fiskheroes:captain_america",
-                    "secretheroes:hulk",
+                    "fiskheroes:ant_man",
                     "fiskheroes:black_panther",
                     "fiskheroes:vision",
                     "fiskheroes:falcon",
@@ -124,9 +133,24 @@ public final class Squads {
                     "fiskheroes:captain_cold",
                     "fiskheroes:doctor_octopus",
                     "fiskheroes:crossbones",
-                    "secretheroes:homelander"));
+                    "fiskheroes:savitar"));
             save();
         }
+    }
+
+    /** Version 1 presets used two heropack heroes; swap just those for Fisk's own, keep the player's edits. */
+    private static void migrate() {
+        for (Squad squad : data.squads) {
+            for (Member m : squad.members) {
+                if ("Avengers".equals(squad.name) && "secretheroes:hulk".equals(m.hero)) {
+                    m.hero = "fiskheroes:ant_man";
+                } else if ("Villains".equals(squad.name) && "secretheroes:homelander".equals(m.hero)) {
+                    m.hero = "fiskheroes:savitar";
+                }
+            }
+        }
+        data.presetsVersion = PRESETS_VERSION;
+        save();
     }
 
     public static void save() {

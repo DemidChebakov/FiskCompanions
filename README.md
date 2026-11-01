@@ -175,6 +175,14 @@ Install the same jars and heropacks on the **server and on every player's game**
 
 ---
 
+## Versioning
+Versions follow [semantic versioning](https://semver.org) and come from git tags (`vMAJOR.MINOR.PATCH`); the build
+reads the tag, so the jar name and the in-game version match it.
+- **v0.1.0** is the first version, a beta. Earlier `v0.0.x` tags are development history.
+- New features bump the minor number (`0.2.0`), fixes bump the patch (`0.1.1`).
+- `1.0.0` is planned once the mod has been tested on a dedicated server and the Hero Configurator has a crafting
+  recipe.
+
 ## Known limitations
 - Some powers aren't used yet: telekinesis, tentacles, teleport, spells, earthquake, lightning, web-swinging/web-zip.
 - Transformations a heropack triggers **only** with its own scripted key (not Fisk's standard transformation) can't run

@@ -12,6 +12,7 @@ import net.minecraft.client.Minecraft;
 
 import com.dchebakov.fiskcompanions.FiskCompanions;
 import com.dchebakov.fiskcompanions.entity.Alignment;
+import com.dchebakov.fiskcompanions.entity.BaseSkin;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -29,12 +30,23 @@ public final class Squads {
 
         public String hero;
         public String side = Alignment.HERO.name();
+        /** Base skin under the suit; older files have none, which means Player. */
+        public String skin = BaseSkin.PLAYER.name();
 
         public Member() {}
 
         public Member(String hero, Alignment side) {
+            this(hero, side, BaseSkin.PLAYER);
+        }
+
+        public Member(String hero, Alignment side, BaseSkin skin) {
             this.hero = hero;
             this.side = side.name();
+            this.skin = skin.name();
+        }
+
+        public BaseSkin baseSkin() {
+            return BaseSkin.byName(skin);
         }
 
         public Alignment alignment() {

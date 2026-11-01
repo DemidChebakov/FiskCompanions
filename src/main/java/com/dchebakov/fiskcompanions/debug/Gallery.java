@@ -20,6 +20,7 @@ import com.dchebakov.fiskcompanions.CommonProxy;
 import com.dchebakov.fiskcompanions.FiskCompanions;
 import com.dchebakov.fiskcompanions.compat.fisk.FiskBridge;
 import com.dchebakov.fiskcompanions.entity.Alignment;
+import com.dchebakov.fiskcompanions.entity.BaseSkin;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
 import com.dchebakov.fiskcompanions.network.PacketSettingsSync;
 import com.dchebakov.fiskcompanions.world.CompanionSettings;
@@ -254,16 +255,18 @@ public final class Gallery {
             guiEntity = guiMob.getEntityId(); // client opens the GUI, screenshots it, applies after a moment
         } else if (guiTicks > 40) {
             boolean pass = guiExpected.equals(guiMob.getHeroKey()) && guiMob.getAlignment() == Alignment.VILLAIN
-                && guiMob.getWornSuit() != null;
+                && guiMob.getWornSuit() != null
+                && guiMob.getSkin() == BaseSkin.STEVE;
             // Wait for the client's Apply (its timing depends on when the screen opened), up to 10 seconds.
             if (!pass && guiTicks < 220) {
                 return;
             }
             String result = String.format(
-                "configurator GUI test: %s (hero=%s alignment=%s suit=%s, expected %s VILLAIN)",
+                "configurator GUI test: %s (hero=%s alignment=%s skin=%s suit=%s, expected %s VILLAIN STEVE)",
                 pass ? "PASS" : "FAIL",
                 guiMob.getHeroKey(),
                 guiMob.getAlignment(),
+                guiMob.getSkin(),
                 guiMob.getWornSuit() != null,
                 guiExpected);
             FiskCompanions.LOG.info("[gallery] {}", result);
@@ -484,6 +487,17 @@ public final class Gallery {
             if (FiskBridge.lookup(key) != null) ++expected;
         }
         int spawned = countCharacters() - spawnerBefore;
+        int playerSkins = 0;
+        for (Object o : world.loadedEntityList) {
+            if (o instanceof EntityFiskHero && ((EntityFiskHero) o).getSkin() == BaseSkin.PLAYER
+                && player.getCommandSenderName()
+                    .equals(((EntityFiskHero) o).getSkinPlayer())) {
+                ++playerSkins;
+            }
+        }
+        index.add("spawned squad with the spawner's player skin: " + playerSkins + "/" + spawned);
+        FiskCompanions.LOG
+            .info("[gallery] squad skins: {}/{} use {}'s skin", playerSkins, spawned, player.getCommandSenderName());
         String result = String.format(
             "spawner squad test: %s (spawned %d, Avengers members installed %d)",
             spawned == expected && expected > 0 ? "PASS" : "FAIL",

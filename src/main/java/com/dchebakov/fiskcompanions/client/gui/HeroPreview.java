@@ -1,8 +1,11 @@
 package com.dchebakov.fiskcompanions.client.gui;
 
+import java.util.List;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.entity.RenderManager;
@@ -12,6 +15,7 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 
 import com.dchebakov.fiskcompanions.compat.fisk.FiskBridge;
+import com.dchebakov.fiskcompanions.entity.BaseSkin;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
 import com.fiskmods.heroes.common.data.var.Vars;
 import com.fiskmods.heroes.common.hero.HeroIteration;
@@ -32,6 +36,8 @@ public class HeroPreview {
     private float yaw = 20.0F;
     private boolean dragging, userRotated;
     private int dragX;
+    private BaseSkin skin = BaseSkin.PLAYER;
+    private GuiButton skinPrev, skinNext;
 
     public void setBounds(int x, int y, int w, int h) {
         this.x = x;
@@ -52,8 +58,39 @@ public class HeroPreview {
             return;
         }
         entity = new EntityFiskHero(mc.theWorld); // fresh per suit, so no transformation state carries over
+        entity.setSkin(skin, "");
         entity.showSuit(iter);
         FiskBridge.previewSuitUp(entity);
+    }
+
+    public BaseSkin getSkin() {
+        return skin;
+    }
+
+    public void setSkin(BaseSkin skin) {
+        this.skin = skin;
+        if (entity != null) {
+            entity.setSkin(skin, ""); // "" = the viewing player's own skin
+        }
+    }
+
+    /** The "< Skin >" arrows under the preview; the screen adds them to its button list. */
+    public void addSkinButtons(List<GuiButton> buttons, int prevId, int nextId) {
+        buttons.add(skinPrev = new SizedButton(prevId, x, y + h + 2, 14, 14, "<"));
+        buttons.add(skinNext = new SizedButton(nextId, x + w - 14, y + h + 2, 14, 14, ">"));
+    }
+
+    /** Returns true if the button was one of the skin arrows (and switches the skin). */
+    public boolean actionPerformed(GuiButton button) {
+        if (button == skinPrev) {
+            setSkin(skin.previous());
+            return true;
+        }
+        if (button == skinNext) {
+            setSkin(skin.next());
+            return true;
+        }
+        return false;
     }
 
     public void tick() {
@@ -89,13 +126,50 @@ public class HeroPreview {
     public void draw(FontRenderer font, float partialTicks) {
         Gui.drawRect(x - 1, y - 1, x + w + 1, y + h + 1, 0xFF000000);
         Gui.drawRect(x, y, x + w, y + h, 0xFF2A2A34);
-        String hint = StatCollector.translateToLocal("gui.fiskcompanions.drag_rotate");
-        font.drawStringWithShadow(hint, x + (w - font.getStringWidth(hint)) / 2, y + h + 4, 0x888888);
+        drawSmall(
+            font,
+            StatCollector.translateToLocal("gui.fiskcompanions.drag_rotate"),
+            x,
+            y + h - 7,
+            w,
+            0x777777,
+            true);
+        if (skinPrev != null && skinPrev.visible) {
+            String label = StatCollector.translateToLocal(skin.translationKey());
+            font.drawStringWithShadow(
+                font.trimStringToWidth(label, w - 30),
+                x + (w - Math.min(font.getStringWidth(label), w - 30)) / 2,
+                y + h + 5,
+                0xFFFFFF);
+            drawSmall(
+                font,
+                StatCollector.translateToLocal("gui.fiskcompanions.skin_notice"),
+                x,
+                y + h + 19,
+                w,
+                0x999999,
+                false);
+        }
         if (entity != null) {
             float size = Math.max(1.0F, Vars.SCALE.get(entity));
             float shownYaw = yaw + (userRotated || dragging ? 0.0F : 1.5F * partialTicks);
             drawEntity(x + w / 2, y + h - 10, (int) (h * 0.36F / size), shownYaw, entity);
         }
+    }
+
+    /** Text at 3/4 size, wrapped to the given width (centred lines if {@code center}). */
+    private static void drawSmall(FontRenderer font, String text, int x, int y, int w, int color, boolean center) {
+        float s = 0.75F;
+        GL11.glPushMatrix();
+        GL11.glScalef(s, s, 1.0F);
+        int lineY = (int) (y / s);
+        for (Object o : font.listFormattedStringToWidth(text, (int) (w / s))) {
+            String line = (String) o;
+            int lx = center ? (int) ((x + (w - font.getStringWidth(line) * s) / 2) / s) : (int) (x / s);
+            font.drawStringWithShadow(line, lx, lineY, color);
+            lineY += 9;
+        }
+        GL11.glPopMatrix();
     }
 
     /** Same setup as vanilla {@code GuiInventory.func_147046_a}, with a free yaw instead of following the mouse. */

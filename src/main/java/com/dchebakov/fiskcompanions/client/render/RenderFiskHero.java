@@ -1,14 +1,18 @@
 package com.dchebakov.fiskcompanions.client.render;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.entity.AbstractClientPlayer;
 import net.minecraft.client.model.ModelBiped;
 import net.minecraft.client.renderer.entity.RenderBiped;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.Vec3;
 
 import org.lwjgl.opengl.GL11;
 
+import com.dchebakov.fiskcompanions.entity.BaseSkin;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
 import com.fiskmods.heroes.client.animation.GLProxy;
 import com.fiskmods.heroes.client.model.ModelHelper;
@@ -20,9 +24,8 @@ import cpw.mods.fml.relauncher.SideOnly;
 
 /**
  * Like Fisk's {@code RenderIronMan}, the suit itself is drawn by the {@code ItemHeroArmor} pieces, so any heropack
- * suit renders with its own model and JS renderer. Underneath is a Steve body, the same base a player has: many
- * suits are drawn for a player skin and leave parts transparent (open helmets, visors, gaps), which would otherwise
- * show straight through the mob.
+ * suit renders with its own model and JS renderer. Underneath is the character's base skin ({@link BaseSkin}): the
+ * spawning player's skin (as a player wearing the suit looks), Steve, or none for suits with their own body shape.
  */
 @SideOnly(Side.CLIENT)
 public class RenderFiskHero extends RenderBiped {
@@ -55,17 +58,38 @@ public class RenderFiskHero extends RenderBiped {
         ModelHelper.applyRotations(entity, motion, GLProxy.RENDER, partialTicks);
     }
 
-    /** The Steve body under the suit; left out for suits that build their own body from custom models. */
+    /** The body under the suit, unless the character's base skin is set to None (see-through). */
     @Override
     protected void renderModel(EntityLivingBase entity, float limbSwing, float limbSwingAmount, float ageInTicks,
         float headYaw, float headPitch, float scale) {
-        if (!(entity instanceof EntityFiskHero) || BaseBody.show((EntityFiskHero) entity)) {
+        if (!(entity instanceof EntityFiskHero) || ((EntityFiskHero) entity).getSkin() != BaseSkin.NONE) {
             super.renderModel(entity, limbSwing, limbSwingAmount, ageInTicks, headYaw, headPitch, scale);
         }
     }
 
+    /**
+     * Skin of the named player if they're in this world (their real, already-downloaded skin), else Steve. In
+     * singleplayer that's always your own skin.
+     */
+    public static ResourceLocation playerSkin(String name) {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.theWorld != null && name != null && !name.isEmpty()) {
+            EntityPlayer player = mc.theWorld.getPlayerEntityByName(name);
+            if (player instanceof AbstractClientPlayer) {
+                return ((AbstractClientPlayer) player).getLocationSkin();
+            }
+        }
+        if (mc.thePlayer != null && (name == null || name.isEmpty())) {
+            return mc.thePlayer.getLocationSkin();
+        }
+        return STEVE;
+    }
+
     @Override
     protected ResourceLocation getEntityTexture(Entity entity) {
+        if (entity instanceof EntityFiskHero && ((EntityFiskHero) entity).getSkin() == BaseSkin.PLAYER) {
+            return playerSkin(((EntityFiskHero) entity).getSkinPlayer());
+        }
         return STEVE;
     }
 }

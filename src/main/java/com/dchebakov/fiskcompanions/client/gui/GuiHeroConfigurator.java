@@ -10,6 +10,7 @@ import org.lwjgl.input.Mouse;
 
 import com.dchebakov.fiskcompanions.CommonProxy;
 import com.dchebakov.fiskcompanions.entity.Alignment;
+import com.dchebakov.fiskcompanions.entity.BaseSkin;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
 import com.dchebakov.fiskcompanions.network.PacketConfigureHero;
 
@@ -27,7 +28,8 @@ public class GuiHeroConfigurator extends GuiScreen {
     private static final int PREVIEW_W = 100;
     private static final int GAP = 6;
     private static final int ROWS = 14;
-    private static final int BTN_ALIGN = 0, BTN_BIND = 1, BTN_APPLY = 2, BTN_CANCEL = 3;
+    private static final int BTN_ALIGN = 0, BTN_BIND = 1, BTN_APPLY = 2, BTN_CANCEL = 3, BTN_SKIN_PREV = 4,
+        BTN_SKIN_NEXT = 5;
 
     private final EntityFiskHero hero;
     private final HeroListWidget list = new HeroListWidget();
@@ -37,6 +39,7 @@ public class GuiHeroConfigurator extends GuiScreen {
     private GuiButton bindButton;
     private Alignment alignment;
     private boolean bind;
+    private BaseSkin skin;
     private int left, top;
 
     public GuiHeroConfigurator(EntityFiskHero hero) {
@@ -44,6 +47,7 @@ public class GuiHeroConfigurator extends GuiScreen {
         this.list.selectedKey = hero.getHeroKey();
         this.alignment = hero.getAlignment();
         this.bind = hero.getOwnerId() == null;
+        this.skin = hero.getSkin();
     }
 
     @Override
@@ -57,6 +61,7 @@ public class GuiHeroConfigurator extends GuiScreen {
         search.setFocused(true);
         list.setBounds(left, listTop, PANEL_W, ROWS);
         preview.setBounds(previewLeft, listTop, PREVIEW_W, list.height());
+        preview.setSkin(skin);
         int by = listTop + list.height() + 6;
         int half = PANEL_W / 2 - 2;
         buttonList.clear();
@@ -64,6 +69,7 @@ public class GuiHeroConfigurator extends GuiScreen {
         buttonList.add(bindButton = new GuiButton(BTN_BIND, left + half + 4, by, half, 20, ""));
         buttonList.add(new GuiButton(BTN_APPLY, left, by + 24, half, 20, tr("gui.fiskcompanions.apply")));
         buttonList.add(new GuiButton(BTN_CANCEL, left + half + 4, by + 24, half, 20, tr("gui.cancel")));
+        preview.addSkinButtons(buttonList, BTN_SKIN_PREV, BTN_SKIN_NEXT);
         refreshButtons();
         list.setFilter(search.getText());
         list.scrollToSelected();
@@ -87,6 +93,10 @@ public class GuiHeroConfigurator extends GuiScreen {
 
     @Override
     protected void actionPerformed(GuiButton button) {
+        if (preview.actionPerformed(button)) {
+            skin = preview.getSkin();
+            return;
+        }
         switch (button.id) {
             case BTN_ALIGN:
                 alignment = alignment.opposite();
@@ -107,7 +117,7 @@ public class GuiHeroConfigurator extends GuiScreen {
 
     private void apply() {
         CommonProxy.network.sendToServer(
-            new PacketConfigureHero(hero, list.selectedKey, alignment, bind && alignment == Alignment.HERO));
+            new PacketConfigureHero(hero, list.selectedKey, alignment, bind && alignment == Alignment.HERO, skin));
         mc.displayGuiScreen(null);
     }
 
@@ -118,8 +128,9 @@ public class GuiHeroConfigurator extends GuiScreen {
     }
 
     /** Dev self-test hook: makes the same choices a player would click, then presses Apply. */
-    public void selectAndApply(String heroKey, Alignment newAlignment, boolean bindToMe) {
+    public void selectAndApply(String heroKey, Alignment newAlignment, boolean bindToMe, BaseSkin newSkin) {
         list.selectedKey = heroKey;
+        skin = newSkin;
         alignment = newAlignment;
         bind = bindToMe;
         apply();

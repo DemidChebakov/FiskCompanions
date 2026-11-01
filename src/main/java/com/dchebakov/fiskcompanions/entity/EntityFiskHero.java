@@ -67,6 +67,8 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
     private static final int DW_ALIGNMENT = 17;
     private static final int DW_OWNER = 18;
     private static final int DW_SITTING = 19;
+    private static final int DW_SKIN = 20;
+    private static final int DW_SKIN_PLAYER = 21;
 
     public final DataContainer data = new DataContainer(DataSyncer.PLAYER);
     private HeroIteration wornSuit;
@@ -130,6 +132,8 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         dataWatcher.addObject(DW_ALIGNMENT, (byte) Alignment.HERO.ordinal());
         dataWatcher.addObject(DW_OWNER, "");
         dataWatcher.addObject(DW_SITTING, (byte) 0);
+        dataWatcher.addObject(DW_SKIN, (byte) BaseSkin.PLAYER.ordinal());
+        dataWatcher.addObject(DW_SKIN_PLAYER, "");
     }
 
     @Override
@@ -356,6 +360,22 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         return null;
     }
 
+    public BaseSkin getSkin() {
+        return BaseSkin.byId(dataWatcher.getWatchableObjectByte(DW_SKIN));
+    }
+
+    /** Name of the player whose skin {@link BaseSkin#PLAYER} shows (whoever spawned or last configured it). */
+    public String getSkinPlayer() {
+        return dataWatcher.getWatchableObjectString(DW_SKIN_PLAYER);
+    }
+
+    public void setSkin(BaseSkin skin, String playerName) {
+        dataWatcher.updateObject(DW_SKIN, (byte) skin.ordinal());
+        if (playerName != null) {
+            dataWatcher.updateObject(DW_SKIN_PLAYER, playerName);
+        }
+    }
+
     public boolean isSitting() {
         return dataWatcher.getWatchableObjectByte(DW_SITTING) != 0;
     }
@@ -513,6 +533,8 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         nbt.setByte("Alignment", (byte) getAlignment().ordinal());
         nbt.setString("Owner", dataWatcher.getWatchableObjectString(DW_OWNER));
         nbt.setBoolean("Sitting", isSitting());
+        nbt.setString("Skin", getSkin().name());
+        nbt.setString("SkinPlayer", getSkinPlayer());
     }
 
     @Override
@@ -523,5 +545,6 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         dataWatcher.updateObject(DW_ALIGNMENT, nbt.getByte("Alignment"));
         dataWatcher.updateObject(DW_OWNER, nbt.getString("Owner"));
         setSitting(nbt.getBoolean("Sitting"));
+        setSkin(BaseSkin.byName(nbt.getString("Skin")), nbt.getString("SkinPlayer"));
     }
 }

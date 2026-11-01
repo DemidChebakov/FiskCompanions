@@ -8,6 +8,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.ChatComponentTranslation;
 
 import com.dchebakov.fiskcompanions.entity.Alignment;
+import com.dchebakov.fiskcompanions.entity.BaseSkin;
 import com.dchebakov.fiskcompanions.item.ItemHeroConfigurator;
 import com.dchebakov.fiskcompanions.world.Spawning;
 
@@ -36,7 +37,8 @@ public class PacketSpawnHeroes implements IMessage {
         int n = Math.min(buf.readUnsignedByte(), Spawning.MAX_PER_REQUEST);
         for (int i = 0; i < n; ++i) {
             String key = ByteBufUtils.readUTF8String(buf);
-            entries.add(new Spawning.Entry(key, Alignment.byId(buf.readByte())));
+            Alignment alignment = Alignment.byId(buf.readByte());
+            entries.add(new Spawning.Entry(key, alignment, BaseSkin.byId(buf.readByte())));
         }
     }
 
@@ -47,6 +49,7 @@ public class PacketSpawnHeroes implements IMessage {
         for (Spawning.Entry e : entries) {
             ByteBufUtils.writeUTF8String(buf, e.heroKey);
             buf.writeByte(e.alignment.ordinal());
+            buf.writeByte(e.skin.ordinal());
         }
     }
 

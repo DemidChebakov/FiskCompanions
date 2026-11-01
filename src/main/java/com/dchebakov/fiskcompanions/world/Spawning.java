@@ -8,6 +8,7 @@ import net.minecraft.world.World;
 
 import com.dchebakov.fiskcompanions.compat.fisk.FiskBridge;
 import com.dchebakov.fiskcompanions.entity.Alignment;
+import com.dchebakov.fiskcompanions.entity.BaseSkin;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
 import com.fiskmods.heroes.common.hero.HeroIteration;
 
@@ -19,10 +20,12 @@ public final class Spawning {
 
         public final String heroKey;
         public final Alignment alignment;
+        public final BaseSkin skin;
 
-        public Entry(String heroKey, Alignment alignment) {
+        public Entry(String heroKey, Alignment alignment, BaseSkin skin) {
             this.heroKey = heroKey;
             this.alignment = alignment;
+            this.skin = skin;
         }
     }
 
@@ -55,6 +58,7 @@ public final class Spawning {
             if (bindToPlayer && entry.alignment == Alignment.HERO) {
                 hero.setOwnerId(player.getUniqueID());
             }
+            hero.setSkin(entry.skin, player.getCommandSenderName());
             hero.setHero(iter);
             world.spawnEntityInWorld(hero);
             ++spawned;

@@ -16,6 +16,7 @@ import com.dchebakov.fiskcompanions.CommonProxy;
 import com.dchebakov.fiskcompanions.client.Squads;
 import com.dchebakov.fiskcompanions.compat.fisk.FiskBridge;
 import com.dchebakov.fiskcompanions.entity.Alignment;
+import com.dchebakov.fiskcompanions.entity.BaseSkin;
 import com.dchebakov.fiskcompanions.network.PacketRemoveAll;
 import com.dchebakov.fiskcompanions.network.PacketSettingsSync;
 import com.dchebakov.fiskcompanions.network.PacketSpawnHeroes;
@@ -48,7 +49,8 @@ public class GuiHeroSpawner extends GuiScreen {
     private static final int BTN_DONE = 3, BTN_REMOVE_ALL = 4;
     private static final int BTN_SIDE = 10, BTN_BIND = 11, BTN_LESS = 12, BTN_MORE = 13, BTN_RANDOM = 14,
         BTN_SPAWN = 15, BTN_ADD = 16, BTN_SQUAD_PREV = 17, BTN_SQUAD_NEXT = 18, BTN_DUP_ADD = 19;
-    private static final int BTN_DUP_REMOVE = 25, BTN_DUP_CANCEL = 26;
+    private static final int BTN_DUP_REMOVE = 25, BTN_DUP_CANCEL = 26, BTN_SKIN_PREV = 27, BTN_SKIN_NEXT = 28,
+        BTN_MEMBER_SKIN = 29;
     private static final int CONFIRM_TICKS = 60;
     private static final int STATUS_TICKS = 60;
     private static final int BTN_NEW = 20, BTN_DELETE = 21, BTN_REMOVE = 22, BTN_SWITCH = 23, BTN_SPAWN_SQUAD = 24;
@@ -61,6 +63,7 @@ public class GuiHeroSpawner extends GuiScreen {
     private static boolean bind = true;
     private static int count = 1;
     private static int selectedSquad;
+    private static BaseSkin skin = BaseSkin.PLAYER;
 
     private final HeroListWidget list = new HeroListWidget();
     private final HeroPreview preview = new HeroPreview();
@@ -105,7 +108,9 @@ public class GuiHeroSpawner extends GuiScreen {
             lastHero = FiskBridge.keyOf(list.all.get(0));
         }
         list.selectedKey = lastHero;
-        preview.setBounds(left, contentTop, 80, 150);
+        preview.setBounds(left, contentTop, 80, 128);
+        preview.setSkin(skin);
+        preview.addSkinButtons(spawnButtons, BTN_SKIN_PREV, BTN_SKIN_NEXT);
         search = new GuiTextField(fontRendererObj, left + 86, contentTop, 196, 12);
         list.setBounds(left + 86, contentTop + 16, 196, 12);
         list.setFilter("");
@@ -144,9 +149,11 @@ public class GuiHeroSpawner extends GuiScreen {
         squadButtons
             .add(new SizedButton(BTN_DELETE, left + 67, contentTop + 116, 63, 18, tr("gui.fiskcompanions.delete")));
         int mx = left + 136;
-        squadButtons.add(new SizedButton(BTN_REMOVE, mx, contentTop + 116, 130, 18, tr("gui.fiskcompanions.remove")));
+        squadButtons.add(new SizedButton(BTN_REMOVE, mx, contentTop + 116, 88, 18, tr("gui.fiskcompanions.remove")));
+        squadButtons
+            .add(new SizedButton(BTN_SWITCH, mx + 90, contentTop + 116, 88, 18, tr("gui.fiskcompanions.switch_side")));
         squadButtons.add(
-            new SizedButton(BTN_SWITCH, mx + 138, contentTop + 116, 130, 18, tr("gui.fiskcompanions.switch_side")));
+            new SizedButton(BTN_MEMBER_SKIN, mx + 180, contentTop + 116, 88, 18, tr("gui.fiskcompanions.member_skin")));
         squadButtons.add(new SizedButton(BTN_SPAWN_SQUAD, mx, contentTop + 138, 268, 20, ""));
 
         // Settings tab
@@ -204,7 +211,7 @@ public class GuiHeroSpawner extends GuiScreen {
             if (b.id == BTN_SPAWN_SQUAD) {
                 b.displayString = tr("gui.fiskcompanions.spawn_squad", squad != null ? squad.name : "-");
                 b.enabled = squad != null && !squad.members.isEmpty();
-            } else if (b.id == BTN_REMOVE || b.id == BTN_SWITCH) {
+            } else if (b.id == BTN_REMOVE || b.id == BTN_SWITCH || b.id == BTN_MEMBER_SKIN) {
                 b.enabled = squad != null && selectedMember >= 0 && selectedMember < squad.members.size();
             } else if (b.id == BTN_DELETE) {
                 b.enabled = squad != null;
@@ -268,7 +275,7 @@ public class GuiHeroSpawner extends GuiScreen {
                 break;
             case BTN_DUP_ADD:
                 if (squad != null && duplicateKey != null) {
-                    squad.members.add(new Squads.Member(duplicateKey, side));
+                    squad.members.add(new Squads.Member(duplicateKey, side, skin));
                     Squads.save();
                     setStatus(tr("gui.fiskcompanions.added", squad.name));
                 }
@@ -336,6 +343,20 @@ public class GuiHeroSpawner extends GuiScreen {
                     Squads.save();
                 }
                 break;
+            case BTN_MEMBER_SKIN:
+                if (squad != null && selectedMember >= 0 && selectedMember < squad.members.size()) {
+                    Squads.Member m = squad.members.get(selectedMember);
+                    m.skin = m.baseSkin()
+                        .next()
+                        .name();
+                    Squads.save();
+                }
+                break;
+            case BTN_SKIN_PREV:
+            case BTN_SKIN_NEXT:
+                preview.actionPerformed(button);
+                skin = preview.getSkin();
+                break;
             case BTN_SPAWN_SQUAD:
                 spawnSquad(squad);
                 return;
@@ -362,7 +383,7 @@ public class GuiHeroSpawner extends GuiScreen {
                 return;
             }
         }
-        squad.members.add(new Squads.Member(heroKey, side));
+        squad.members.add(new Squads.Member(heroKey, side, skin));
         Squads.save();
         setStatus(tr("gui.fiskcompanions.added", squad.name));
     }
@@ -404,7 +425,7 @@ public class GuiHeroSpawner extends GuiScreen {
         }
         List<Spawning.Entry> entries = new ArrayList<>();
         for (int i = 0; i < count; ++i) {
-            entries.add(new Spawning.Entry(list.selectedKey, side));
+            entries.add(new Spawning.Entry(list.selectedKey, side, skin));
         }
         CommonProxy.network.sendToServer(new PacketSpawnHeroes(entries, bind));
         mc.displayGuiScreen(null);
@@ -417,7 +438,7 @@ public class GuiHeroSpawner extends GuiScreen {
         List<Spawning.Entry> entries = new ArrayList<>();
         for (Squads.Member m : squad.members) {
             if (FiskBridge.lookup(m.hero) != null) {
-                entries.add(new Spawning.Entry(m.hero, m.alignment()));
+                entries.add(new Spawning.Entry(m.hero, m.alignment(), m.baseSkin()));
             }
         }
         if (!entries.isEmpty()) {
@@ -431,6 +452,12 @@ public class GuiHeroSpawner extends GuiScreen {
     public void showTab(int newTab) {
         tab = newTab;
         refresh();
+    }
+
+    /** Switches the skin selector under the preview, as clicking its arrows would. */
+    public void setSkinForTest(BaseSkin newSkin) {
+        skin = newSkin;
+        preview.setSkin(newSkin);
     }
 
     /** Selects a hero and presses Add to squad; returns true if the duplicate warning came up. */
@@ -664,8 +691,13 @@ public class GuiHeroSpawner extends GuiScreen {
                 String name = iter != null ? FiskBridge.displayName(iter)
                     : EnumChatFormatting.DARK_GRAY + m.hero + " " + tr("gui.fiskcompanions.not_installed");
                 Alignment a = m.alignment();
-                String sideLabel = a.color + tr(a.translationKey());
-                drawString(fontRendererObj, fontRendererObj.trimStringToWidth(name, 200), mx + 3, ry + 2, 0xFFFFFF);
+                String sideLabel = EnumChatFormatting.GRAY + tr(
+                    m.baseSkin()
+                        .translationKey())
+                    + "  "
+                    + a.color
+                    + tr(a.translationKey());
+                drawString(fontRendererObj, fontRendererObj.trimStringToWidth(name, 170), mx + 3, ry + 2, 0xFFFFFF);
                 drawString(
                     fontRendererObj,
                     sideLabel,

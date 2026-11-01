@@ -10,9 +10,9 @@ import net.minecraft.world.WorldType;
 import com.dchebakov.fiskcompanions.FiskCompanions;
 import com.dchebakov.fiskcompanions.client.gui.GuiHeroConfigurator;
 import com.dchebakov.fiskcompanions.client.gui.GuiHeroSpawner;
-import com.dchebakov.fiskcompanions.client.render.BaseBody;
 import com.dchebakov.fiskcompanions.compat.fisk.FiskBridge;
 import com.dchebakov.fiskcompanions.entity.Alignment;
+import com.dchebakov.fiskcompanions.entity.BaseSkin;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
 
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
@@ -66,7 +66,7 @@ public class ClientSelfTestLauncher {
                 mc.displayHeight,
                 mc.getFramebuffer());
         } else if (guiTicks == 40) {
-            gui.selectAndApply(Gallery.guiTestKey(), Alignment.VILLAIN, false);
+            gui.selectAndApply(Gallery.guiTestKey(), Alignment.VILLAIN, false, BaseSkin.STEVE);
             guiTicks = -1;
         }
     }
@@ -94,12 +94,14 @@ public class ClientSelfTestLauncher {
         ++spawnerTicks;
         if (spawnerTicks == 2) {
             gui.showTab(GuiHeroSpawner.TAB_SPAWN);
+            gui.setSkinForTest(BaseSkin.NONE); // the spawn-tab screenshot shows the skin selector on None
             gui.selectSquadNamed("Avengers");
             boolean warned = gui.addToSquadForTest("fiskheroes:iron_man"); // already in the Avengers
             FiskCompanions.LOG.info("[gallery] client duplicate warning test: {}", warned ? "PASS" : "FAIL");
         } else if (spawnerTicks == 15) {
             shot(mc, "fc-spawner-spawn.png");
             gui.cancelDuplicateForTest();
+            gui.setSkinForTest(BaseSkin.PLAYER);
             gui.showTab(GuiHeroSpawner.TAB_SQUADS);
         } else if (spawnerTicks == 22) {
             shot(mc, "fc-spawner-squads.png");
@@ -127,9 +129,9 @@ public class ClientSelfTestLauncher {
                 if (o instanceof EntityFiskHero) {
                     EntityFiskHero mob = (EntityFiskHero) o;
                     FiskCompanions.LOG.info(
-                        "[gallery] client {} base={} {}",
+                        "[gallery] client {} skin={} {}",
                         mob.getHeroKey(),
-                        BaseBody.show(mob) ? "steve" : "none",
+                        mob.getSkin(),
                         FiskBridge.debugState(mob));
                 }
             }

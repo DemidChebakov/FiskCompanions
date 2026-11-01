@@ -58,12 +58,19 @@ In singleplayer or Creative it removes every character; on a server it removes y
 2. **List**: scroll with the mouse wheel and **click a suit**. The grey word in front is the heropack it comes from.
 3. **Preview** (left): the selected suit on a 3D figure, already transformed (Hulk green and big, Iron Man nanites
    on). **Hold the left mouse button on it and drag** to turn it.
-4. **Hero / Villain**: which side the character is on.
-5. **Bind to me**: Heroes you spawn belong to you (they follow and protect you).
-6. **- Count +**: how many to spawn at once (1-10).
-7. **Random hero**: picks a random suit.
-8. **Spawn**: the characters appear in front of you.
-9. **< Squad >**: the arrows choose which squad **Add to squad** puts the selected suit (with its side) into.
+4. **< Skin >** (under the preview): the body drawn under the suit. Heropacks are made for different bodies, so you
+   choose what looks right for each character:
+   - **Player** (default): your own skin, exactly like you'd look wearing the suit.
+   - **Steve**: the classic Steve body.
+   - **None**: no body, see-through. Best for robots and creatures (e.g. Ultron), whose suits have their own shape.
+
+   The choice is used when you spawn, and it's saved with the character when you add it to a squad.
+5. **Hero / Villain**: which side the character is on.
+6. **Bind to me**: Heroes you spawn belong to you (they follow and protect you).
+7. **- Count +**: how many to spawn at once (1-10).
+8. **Random hero**: picks a random suit.
+9. **Spawn**: the characters appear in front of you.
+10. **< Squad >**: the arrows choose which squad **Add to squad** puts the selected suit (with its side) into.
    If that character is already in the squad, a warning appears: **Add** (add it again), **Remove** (take the existing
    one out) or **x** (do nothing).
 
@@ -76,7 +83,8 @@ In singleplayer or Creative it removes every character; on a server it removes y
   - **Villains**: Reverse-Flash, Zoom, Deathstroke, Captain Cold, Doctor Octopus, Crossbones, Savitar
 - Click a squad on the left, then **Spawn squad** spawns everyone in it at once.
 - **New** makes an empty squad; **Delete** removes the selected one. Type in the box under the list to **rename** it.
-- Click a member on the right, then **Remove member** or **Hero / Villain** to switch its side.
+- Click a member on the right, then **Remove member**, **Hero / Villain** to switch its side, or **Skin** to switch
+  its body (Player / Steve / None). Each member shows its skin and side.
 - To add members, go to the **Spawn** tab, pick a suit and side, and press **Add to squad**.
 - Squads are saved on your computer (`config/fiskcompanions-squads.json`), so they work in every world. Members from
   a heropack you don't have installed are shown greyed out and skipped.
@@ -92,8 +100,8 @@ In singleplayer or Creative it removes every character; on a server it removes y
 The settings are saved with the world. In singleplayer you can always change them; on a server only operators can.
 
 ### 5. Change a character that's already there
-Hold the Configurator and **right-click the character**. A smaller window opens where you pick a new suit, switch
-Hero/Villain and bind it to you, then press **Apply**. Only the owner (or a player in Creative) can change a character.
+Hold the Configurator and **right-click the character**. A smaller window opens where you pick a new suit, its skin
+(Player / Steve / None), switch Hero/Villain and bind it to you, then press **Apply**. Only the owner (or a player in Creative) can change a character.
 
 ![Hero Configurator](docs/images/configurator.png)
 
@@ -201,9 +209,9 @@ See [docs/fisk-internals.md](docs/fisk-internals.md).
   per-gadget cooldowns. Rapid webs call `EquipmentRapidWebs.shoot` directly.
 - Weapons (the suit's primary equipment): the melee weapon is held up close (Fisk's punch system applies weapon
   damage) and guns at range, fired through Fisk's protected `ItemGun.trigger` via reflection with infinite ammo.
-- A Steve body is drawn under the suit, so partial or see-through suits look as they do on a player. Suits whose
-  renderer builds the body from custom models (robots like Ultron, creatures, the Hulk) get no Steve body, so default
-  arms and legs don't stick out beside the suit's own.
+- A body is drawn under the suit, chosen per character (`BaseSkin`): the spawning player's skin (default; their
+  already-downloaded skin when they're in the world, else Steve), Steve, or none. Heropacks are built for different
+  bodies, so this is a player choice rather than a guess.
 
 ## Building from source
 Requirements: JDK 17+ to run Gradle. The build downloads its own Java 8 toolchain.

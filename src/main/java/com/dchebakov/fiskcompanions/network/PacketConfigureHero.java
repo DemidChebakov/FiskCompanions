@@ -8,6 +8,7 @@ import net.minecraft.util.ChatComponentTranslation;
 import com.dchebakov.fiskcompanions.FiskCompanions;
 import com.dchebakov.fiskcompanions.compat.fisk.FiskBridge;
 import com.dchebakov.fiskcompanions.entity.Alignment;
+import com.dchebakov.fiskcompanions.entity.BaseSkin;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
 import com.dchebakov.fiskcompanions.item.ItemHeroConfigurator;
 import com.fiskmods.heroes.common.hero.HeroIteration;
@@ -27,10 +28,13 @@ public class PacketConfigureHero implements IMessage {
     private String heroKey;
     private int alignment;
     private boolean bindToSender;
+    private int skin;
 
     public PacketConfigureHero() {}
 
-    public PacketConfigureHero(EntityFiskHero hero, String heroKey, Alignment alignment, boolean bindToSender) {
+    public PacketConfigureHero(EntityFiskHero hero, String heroKey, Alignment alignment, boolean bindToSender,
+        BaseSkin skin) {
+        this.skin = skin.ordinal();
         this.entityId = hero.getEntityId();
         this.heroKey = heroKey;
         this.alignment = alignment.ordinal();
@@ -43,6 +47,7 @@ public class PacketConfigureHero implements IMessage {
         heroKey = ByteBufUtils.readUTF8String(buf);
         alignment = buf.readByte();
         bindToSender = buf.readBoolean();
+        skin = buf.readByte();
     }
 
     @Override
@@ -51,6 +56,7 @@ public class PacketConfigureHero implements IMessage {
         ByteBufUtils.writeUTF8String(buf, heroKey);
         buf.writeByte(alignment);
         buf.writeBoolean(bindToSender);
+        buf.writeByte(skin);
     }
 
     public static class Handler implements IMessageHandler<PacketConfigureHero, IMessage> {
@@ -82,6 +88,7 @@ public class PacketConfigureHero implements IMessage {
                 hero.setHero(iter);
             }
             hero.setAlignment(Alignment.byId(msg.alignment));
+            hero.setSkin(BaseSkin.byId(msg.skin), player.getCommandSenderName());
             if (msg.bindToSender) {
                 hero.setOwnerId(player.getUniqueID());
             }

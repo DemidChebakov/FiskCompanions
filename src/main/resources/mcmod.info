@@ -1,0 +1,21 @@
+{
+	"modListVersion": 2,
+	"modList": [{
+		"modid": "${modId}",
+		"name": "${modName}",
+		"description": "Hero and villain mobs that wear any Fisk's Heroes suit (including heropacks) and use its powers.",
+		"version": "${modVersion}",
+		"mcversion": "${minecraftVersion}",
+		"url": "",
+		"updateUrl": "",
+		"authorList": ["dchebakov"],
+		"credits": "Built on Fisk's Superheroes by FiskFille.",
+		"logoFile": "",
+		"screenshots": [],
+		"parent": "",
+		"requiredMods": ["fiskheroes"],
+		"dependencies": ["fiskheroes"],
+		"dependants": [],
+		"useDependencyInformation": true
+	}]
+}

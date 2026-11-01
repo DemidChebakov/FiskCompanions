@@ -1,0 +1,16 @@
+item.fiskcompanions.hero_configurator.name=Hero Configurator
+entity.fiskcompanions.FiskHero.name=Suited Character
+
+fiskcompanions.alignment.hero=Hero
+fiskcompanions.alignment.villain=Villain
+
+gui.fiskcompanions.title=Hero Configurator
+gui.fiskcompanions.apply=Apply
+gui.fiskcompanions.bind_on=Bind to me: ON
+gui.fiskcompanions.bind_off=Bind to me: OFF
+gui.fiskcompanions.no_match=No heroes match
+
+fiskcompanions.msg.stay=%s will stay here.
+fiskcompanions.msg.follow=%s will follow you.
+fiskcompanions.msg.no_heroes=No Fisk's Heroes suits are loaded.
+fiskcompanions.msg.not_owner=Only this character's owner can reconfigure it.

@@ -259,8 +259,13 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
      * Fisk aims beams, projectiles, gadgets and guns along the look vector: turn body, head and pitch to the target.
      */
     public void faceEntity(Entity target) {
+        faceEntity(target, 0.0D);
+    }
+
+    /** As {@link #faceEntity(Entity)}, aiming {@code extraY} blocks higher (e.g. for an arrow's drop). */
+    public void faceEntity(Entity target, double extraY) {
         double dx = target.posX - posX;
-        double dy = target.boundingBox.minY + target.height * 0.6D - (posY + getEyeHeight());
+        double dy = target.boundingBox.minY + target.height * 0.6D + extraY - (posY + getEyeHeight());
         double dz = target.posZ - posZ;
         double horiz = MathHelper.sqrt_double(dx * dx + dz * dz);
         float yaw = (float) (Math.atan2(dz, dx) * 180.0D / Math.PI) - 90.0F;
@@ -498,6 +503,14 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         if (!flight.isFlying()) {
             super.fall(distance * 0.25F); // suited characters shrug off most falls
         }
+    }
+
+    @Override
+    public void setDead() {
+        if (!worldObj.isRemote) {
+            weapons.discardThrownShield(); // a shield in flight must not drop as a free item
+        }
+        super.setDead();
     }
 
     @Override

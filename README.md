@@ -141,7 +141,8 @@ race Zoom arrives in about half a second, while a normal hero needs more than tw
 | Spider-Man (every version) | Web shooters: sticky, impact, ricochet and rapid webs |
 | Batman | Batarangs, smoke pellets, freeze grenades |
 | Deadpool | Desert Eagles at range (dual), katana up close |
-| Captain America | His shield as a melee weapon |
+| Captain America | Throws his shield at targets (it flies back to him), and uses it as a melee weapon |
+| Green Arrow | Compound bow with trick arrows: normal, explosive, triple, boxing glove, fire charge |
 | Any heropack suit | Its own gadgets and weapons, if it defines them |
 
 They throw or shoot at targets a few blocks away and switch to melee weapons up close. Characters never run out of ammo.
@@ -175,8 +176,7 @@ Install the same jars and heropacks on the **server and on every player's game**
 ---
 
 ## Known limitations
-- Some powers aren't used yet: telekinesis, tentacles, teleport, spells, earthquake, lightning, web-swinging/web-zip,
-  Green Arrow's bow (archery) and shield throwing.
+- Some powers aren't used yet: telekinesis, tentacles, teleport, spells, earthquake, lightning, web-swinging/web-zip.
 - Transformations a heropack triggers **only** with its own scripted key (not Fisk's standard transformation) can't run
   on a mob. The character then stays in its untransformed look.
 - Ground smash damages and knocks back but doesn't break blocks.
@@ -207,6 +207,10 @@ See [docs/fisk-internals.md](docs/fisk-internals.md).
   recorded trail points (`TrailHandler`) in the suit's trail colour.
 - Gadgets (`fiskheroes:equipment`): `Equipment.onUsed` spawns the projectile for any entity; the mob keeps its own
   per-gadget cooldowns. Rapid webs call `EquipmentRapidWebs.shoot` directly.
+- Bow: Fisk's bow only fires from a player's draw; the mob fires `ArrowType.shoot` (any shooter) at full draw with
+  a trick arrow from a combat set, aiming a little high for the drop.
+- Shield throw (`shield_throwing`): Fisk only returns a thrown shield to a player and drops it as an item otherwise,
+  so the mob spawns Fisk's `EntityThrownShield`, steers it back after a short flight, and removes it without a drop.
 - Weapons (the suit's primary equipment): the melee weapon is held up close (Fisk's punch system applies weapon
   damage) and guns at range, fired through Fisk's protected `ItemGun.trigger` via reflection with infinite ammo.
 - A body is drawn under the suit, chosen per character (`BaseSkin`): the spawning player's skin (default; their
@@ -232,14 +236,15 @@ Heropack zips for dev runs go in `run/client/fiskheroes/`.
 ```sh
 JAVA_HOME=/opt/homebrew/opt/openjdk@21 ./gradlew runClient -PfcSelftest
 ```
-This opens a superflat creative world by itself, then:
-1. Saves a screenshot gallery of every hero, five per image (`run/client/screenshots/`, index in
-   `run/client/fiskcompanions-gallery.txt`).
-2. Drives the real configurator GUI and checks the change reaches the server.
-3. Runs every hero through villain-vs-hero, villain-vs-animals and guard scenarios
-   (`run/client/fiskcompanions-selftest.txt`), then quits.
+Takes about 3-4 minutes. It opens a superflat creative world by itself, checks the configurator GUI, flight, the
+speedster race, bow and shield throwing (and that no item drops), the spawner menu (squad spawn, duplicate warning,
+Remove all), the four friendly-fire rules, and then runs every loaded hero through villain-vs-hero,
+villain-vs-animals and guard scenarios (`run/client/fiskcompanions-selftest.txt`), then quits. Keep only a couple of
+heropacks in `run/client/fiskheroes/` to stay within that time.
 
 Options:
+- `-PfcGallery` also saves a screenshot gallery of every hero, five per image (`run/client/screenshots/`, index in
+  `run/client/fiskcompanions-gallery.txt`). Slow with many heropacks.
 - `-PfcOnly=iron_man_mk50,secretheroes:hulk` limits the run to heroes whose key contains one of those parts.
 - `-PfcTrace=<hero key part>` logs that mob's AI state every second.
 

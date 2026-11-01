@@ -39,8 +39,8 @@ import cpw.mods.fml.common.gameevent.TickEvent;
  */
 public final class SelfTest {
 
-    private static final int PER_ROUND = 12;
-    private static final int ROUND_TICKS = 300;
+    private static final int PER_ROUND = 20;
+    private static final int ROUND_TICKS = 200;
     private static final int SPACING = 28;
 
     private static SelfTest active;
@@ -136,8 +136,8 @@ public final class SelfTest {
             if (idx >= heroes.size()) {
                 break;
             }
-            int x = spawn.posX - 42 + (k % 4) * SPACING;
-            int z = spawn.posZ - 28 + (k / 4) * SPACING;
+            int x = spawn.posX - 56 + (k % 5) * SPACING;
+            int z = spawn.posZ - 42 + (k / 5) * SPACING;
             int y = world.getTopSolidOrLiquidBlock(x, z);
 
             HeroIteration villainHero = heroes.get(idx);

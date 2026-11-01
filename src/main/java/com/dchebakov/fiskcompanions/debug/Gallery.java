@@ -40,6 +40,7 @@ import cpw.mods.fml.common.gameevent.TickEvent;
 public final class Gallery {
 
     private static final int PER_PAGE = 5;
+    private static final boolean SHOW_GALLERY = Boolean.getBoolean("fiskcompanions.gallery");
     private static final int PAGE_TICKS = 80;
     private static final int SHOT_AT = 70;
 
@@ -151,12 +152,21 @@ public final class Gallery {
             tickRace();
             return;
         }
+        if (weaponsTicks >= 0) {
+            tickWeaponsTest();
+            return;
+        }
         if (spawnerTicks >= 0) {
             tickSpawnerTest();
             return;
         }
         if (removeAllTicks >= 0) {
             tickRemoveAllTest();
+            return;
+        }
+        if (!SHOW_GALLERY && page < 0) {
+            page = Integer.MAX_VALUE / 2; // screenshot gallery is opt-in (-PfcGallery); go straight to the checks
+            startGuiTest();
             return;
         }
         if (page < 0 || ++ticks >= PAGE_TICKS) {
@@ -400,6 +410,88 @@ public final class Gallery {
         raceTicks = 0;
     }
 
+    private final List<EntityFiskHero> gunners = new ArrayList<>();
+    private EntityFiskHero weaponsDummy;
+    private int weaponsTicks = -1;
+
+    /** Green Arrow's bow and Captain America's shield throw against a villain dummy pinned 12 blocks away. */
+    private void startWeaponsTest() {
+        weaponsDummy = new EntityFiskHero(world);
+        weaponsDummy.setLocationAndAngles(cx, cy, cz - 12.0D, 0.0F, 0.0F);
+        weaponsDummy.setAlignment(Alignment.VILLAIN);
+        weaponsDummy.setSitting(true);
+        weaponsDummy.setHero(heroes.get(0));
+        world.spawnEntityInWorld(weaponsDummy);
+        int i = 0;
+        for (String key : new String[] { "fiskheroes:green_arrow", "fiskheroes:captain_america" }) {
+            HeroIteration iter = FiskBridge.lookup(key);
+            if (iter == null) continue;
+            EntityFiskHero mob = new EntityFiskHero(world);
+            mob.setLocationAndAngles(cx - 2.0D + i * 4.0D, cy, cz, 180.0F, 0.0F);
+            mob.setAlignment(Alignment.HERO);
+            mob.setSitting(true); // stand and shoot/throw: stay at range
+            mob.setHero(iter);
+            world.spawnEntityInWorld(mob);
+            gunners.add(mob);
+            ++i;
+        }
+        weaponsTicks = 0;
+    }
+
+    private void tickWeaponsTest() {
+        ++weaponsTicks;
+        weaponsDummy.setPositionAndRotation(cx, cy, cz - 12.0D, 0.0F, 0.0F);
+        weaponsDummy.motionX = weaponsDummy.motionY = weaponsDummy.motionZ = 0.0D;
+        weaponsDummy.setHealth(weaponsDummy.getMaxHealth());
+        weaponsDummy.setAttackTarget(null);
+        for (int i = 0; i < gunners.size(); ++i) {
+            EntityFiskHero mob = gunners.get(i);
+            mob.setPositionAndRotation(cx - 2.0D + i * 4.0D, cy, cz, 180.0F, 0.0F); // keep them at range
+            mob.setAttackTarget(weaponsDummy);
+        }
+        if (weaponsTicks == 25) {
+            player.playerNetServerHandler.setPlayerLocation(cx + 8.0D, cy + 2.0D, cz - 6.0D, 90.0F, 5.0F);
+            shotRequest = "fc-weapons";
+        }
+        if (weaponsTicks < 140) {
+            return;
+        }
+        for (EntityFiskHero mob : gunners) {
+            java.util.Map<String, Integer> usage = mob.getPowers()
+                .getUsage();
+            boolean archer = mob.getHeroKey()
+                .contains("green_arrow");
+            boolean used = archer ? usage.keySet()
+                .stream()
+                .anyMatch(k -> k.startsWith("bow:")) : usage.containsKey("shield_throw");
+            boolean armed = mob.getHeldItem() != null; // shield caught back / bow still in hand
+            String result = String.format(
+                "weapons test [%s]: %s (uses=%s, holding=%s)",
+                archer ? "bow" : "shield throw",
+                used && armed ? "PASS" : "FAIL",
+                usage,
+                mob.getHeldItem() != null ? mob.getHeldItem()
+                    .getUnlocalizedName() : "nothing");
+            FiskCompanions.LOG.info("[gallery] {}", result);
+            index.add(result);
+            mob.setDead();
+        }
+        int dropped = 0;
+        for (Object o : world.loadedEntityList) {
+            if (o instanceof net.minecraft.entity.item.EntityItem) ++dropped;
+        }
+        String drops = String.format(
+            "weapons test [no free items dropped]: %s (%d item entities)",
+            dropped == 0 ? "PASS" : "FAIL",
+            dropped);
+        FiskCompanions.LOG.info("[gallery] {}", drops);
+        index.add(drops);
+        gunners.clear();
+        weaponsDummy.setDead();
+        weaponsTicks = -1;
+        startSpawnerTest();
+    }
+
     private void tickRace() {
         ++raceTicks;
         player.playerNetServerHandler.setPlayerLocation(cx + 14.0D, cy + 3.0D, cz - 4.0D, 90.0F, 10.0F);
@@ -451,7 +543,7 @@ public final class Gallery {
             raceTicks = -1;
             player.capabilities.isFlying = false;
             player.sendPlayerAbilities();
-            startSpawnerTest();
+            startWeaponsTest();
         }
     }
 

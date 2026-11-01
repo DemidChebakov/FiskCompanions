@@ -9,7 +9,6 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.EntityAIHurtByTarget;
 import net.minecraft.entity.ai.EntityAILookIdle;
-import net.minecraft.entity.ai.EntityAINearestAttackableTarget;
 import net.minecraft.entity.ai.EntityAISwimming;
 import net.minecraft.entity.ai.EntityAIWander;
 import net.minecraft.entity.ai.EntityAIWatchClosest;
@@ -33,6 +32,7 @@ import com.dchebakov.fiskcompanions.compat.fisk.FiskBridge;
 import com.dchebakov.fiskcompanions.entity.ai.AIFollowOwner;
 import com.dchebakov.fiskcompanions.entity.ai.AIGuardOwner;
 import com.dchebakov.fiskcompanions.entity.ai.AIMeleeAttack;
+import com.dchebakov.fiskcompanions.entity.ai.AINearestTarget;
 import com.dchebakov.fiskcompanions.entity.ai.AIOwnerHurtByTarget;
 import com.dchebakov.fiskcompanions.entity.ai.AIOwnerHurtTarget;
 import com.dchebakov.fiskcompanions.entity.ai.FlightController;
@@ -93,12 +93,9 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         targetTasks.addTask(3, new EntityAIHurtByTarget(this, false));
         targetTasks.addTask(
             4,
-            new EntityAINearestAttackableTarget(
+            new AINearestTarget(
                 this,
                 EntityFiskHero.class,
-                0,
-                true,
-                false,
                 e -> e instanceof EntityFiskHero && ((EntityFiskHero) e).getAlignment() != getAlignment()));
         targetTasks.addTask(5, new AIGuardOwner(this, 12.0D));
         targetTasks.addTask(6, villainTarget(EntityPlayer.class));
@@ -107,19 +104,16 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         targetTasks.addTask(8, villainTarget(EntityAnimal.class));
         targetTasks.addTask(
             9,
-            new EntityAINearestAttackableTarget(
+            new AINearestTarget(
                 this,
                 EntityCreature.class,
-                0,
-                true,
-                false,
                 e -> e instanceof IMob && getAlignment() == Alignment.HERO && getOwner() == null));
     }
 
-    private EntityAINearestAttackableTarget villainTarget(Class<? extends Entity> type) {
+    private AINearestTarget villainTarget(Class<? extends Entity> type) {
         IEntitySelector selector = e -> getAlignment() == Alignment.VILLAIN
             && worldObj.difficultySetting != EnumDifficulty.PEACEFUL;
-        return new EntityAINearestAttackableTarget(this, type, 0, true, false, selector);
+        return new AINearestTarget(this, type, selector);
     }
 
     @Override
@@ -246,6 +240,12 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         wornSuit = FiskBridge.computeWornSuit(this);
         powers.reset();
         setHealth(getMaxHealth());
+    }
+
+    /** Client-only preview (configurator GUI): wear the suit without syncing anything or touching the AI. */
+    public void showSuit(HeroIteration iter) {
+        FiskBridge.equip(this, iter);
+        wornSuit = FiskBridge.computeWornSuit(this);
     }
 
     public Alignment getAlignment() {

@@ -5,10 +5,14 @@ import net.minecraft.client.renderer.entity.RenderBiped;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.Vec3;
 
 import org.lwjgl.opengl.GL11;
 
+import com.fiskmods.heroes.client.animation.GLProxy;
+import com.fiskmods.heroes.client.model.ModelHelper;
 import com.fiskmods.heroes.common.data.var.Vars;
+import com.fiskmods.heroes.util.SHClientUtils;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -35,6 +39,19 @@ public class RenderFiskHero extends RenderBiped {
         if (scale != 1.0F) {
             GL11.glScalef(scale, scale, scale);
         }
+    }
+
+    /**
+     * Fisk tilts the body for flight, gliding and other poses from {@code RenderPlayer} only; do the same for the mob
+     * so
+     * suits use their flight animations (horizontal boost pose, hover lean, …).
+     */
+    @Override
+    protected void rotateCorpse(EntityLivingBase entity, float ageInTicks, float rotationYaw, float partialTicks) {
+        super.rotateCorpse(entity, ageInTicks, rotationYaw, partialTicks);
+        Vec3 motion = SHClientUtils.getMotion(entity);
+        ModelHelper.rotateGliding(entity, motion, GLProxy.RENDER, partialTicks);
+        ModelHelper.applyRotations(entity, motion, GLProxy.RENDER, partialTicks);
     }
 
     @Override

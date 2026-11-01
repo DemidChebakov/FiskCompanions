@@ -9,7 +9,9 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.item.ItemStack;
 
 import com.fiskmods.heroes.FiskHeroes;
+import com.fiskmods.heroes.common.data.var.DataVar;
 import com.fiskmods.heroes.common.data.var.Vars;
+import com.fiskmods.heroes.common.entity.attribute.ArmorAttribute;
 import com.fiskmods.heroes.common.hero.Hero;
 import com.fiskmods.heroes.common.hero.HeroIteration;
 import com.fiskmods.heroes.common.hero.HeroTracker;
@@ -87,6 +89,95 @@ public final class FiskBridge {
                 });
         }
         return sb.toString();
+    }
+
+    public enum SuitUp {
+        /** Already on, or not a toggle transformation. */
+        NONE,
+        /** Switched on: it unlocks more powers or stronger punches. */
+        KEPT,
+        /** Switched back off: for this hero it means "suit off" (e.g. SecretHeroes speedster suits). */
+        REVERTED
+    }
+
+    public static Transformation transformation(ModifierEntry entry) {
+        return prop(entry, PowerProperty.TRANSFORMATION, null);
+    }
+
+    /**
+     * Enabled, toggle-able TRANSFORMATION entries of the hero (collected, since trying them changes what's enabled).
+     */
+    public static List<ModifierEntry> toggleTransformations(EntityLivingBase entity, Hero hero) {
+        List<ModifierEntry> list = new ArrayList<>();
+        hero.getEnabledModifiers(entity, Modifier.TRANSFORMATION, PowerProperty.IS_TOGGLE.isValue(true))
+            .forEach(list::add);
+        return list;
+    }
+
+    /**
+     * Turns the transformation's toggle on the way a player's transform key would, and keeps it only if the hero ends
+     * up with more enabled powers or stronger punches; otherwise it is turned back off. Does not sync.
+     */
+    public static SuitUp trySuitUp(EntityLivingBase entity, Hero hero, ModifierEntry entry) {
+        Transformation t = transformation(entry);
+        if (t == null || !t.toggle.hasResult()) {
+            return SuitUp.NONE;
+        }
+        DataVar<Boolean> toggle = t.toggle.get();
+        if (toggle.get(entity)) {
+            return SuitUp.NONE;
+        }
+        int before = hero.getEnabledModifiers(entity)
+            .size();
+        float punchBefore = ArmorAttribute.PUNCH_DAMAGE.get(entity, hero, 1.0F);
+        if (!toggle.set(entity, true)
+            .success()) {
+            return SuitUp.NONE;
+        }
+        int after = hero.getEnabledModifiers(entity)
+            .size();
+        float punchAfter = ArmorAttribute.PUNCH_DAMAGE.get(entity, hero, 1.0F);
+        if (after <= before && punchAfter <= punchBefore) {
+            toggle.set(entity, false);
+            return SuitUp.REVERTED;
+        }
+        return SuitUp.KEPT;
+    }
+
+    /**
+     * Client-only preview: shows the hero fully suited, i.e. kept transformations with their timers finished and
+     * size-changing heroes at full size. Nothing is synced.
+     */
+    public static void previewSuitUp(EntityLivingBase entity) {
+        Hero hero = HeroTracker.get(entity);
+        if (hero == null) {
+            return;
+        }
+        boolean transformed = false;
+        for (ModifierEntry entry : toggleTransformations(entity, hero)) {
+            if (trySuitUp(entity, hero, entry) == SuitUp.KEPT) {
+                transformed = true;
+                Transformation t = transformation(entry);
+                if (t.timer.hasResult()) {
+                    t.timer.get()
+                        .set(entity, 1.0F);
+                }
+            }
+        }
+        ModifierEntry size = hero.getEnabledModifier(entity, Modifier.SIZE_MANIPULATION);
+        if (transformed && size != null) {
+            Vars.SCALE.set(entity, prop(size, PowerProperty.MAX_SIZE, 1.0F));
+        }
+    }
+
+    /** True if the hero has a flight modifier (mobs fly with any of them). */
+    public static boolean canFly(HeroIteration iter) {
+        return iter != null && (iter.hero.getModifiers()
+            .contains(Modifier.FLIGHT)
+            || iter.hero.getModifiers()
+                .contains(Modifier.CONTROLLED_FLIGHT)
+            || iter.hero.getModifiers()
+                .contains(Modifier.PROPELLED_FLIGHT));
     }
 
     /** True if the hero's set includes a helmet, so the mob's head is covered by the suit. */

@@ -45,6 +45,7 @@ public class ClientSelfTestLauncher {
             return;
         }
         ++guiTicks;
+        GuiHeroConfigurator gui = (GuiHeroConfigurator) mc.currentScreen;
         if (guiTicks == 20) {
             ScreenShotHelper.saveScreenshot(
                 mc.mcDataDir,
@@ -52,8 +53,16 @@ public class ClientSelfTestLauncher {
                 mc.displayWidth,
                 mc.displayHeight,
                 mc.getFramebuffer());
-        } else if (guiTicks == 30) {
-            ((GuiHeroConfigurator) mc.currentScreen).selectAndApply(Gallery.guiTestKey(), Alignment.VILLAIN, false);
+            gui.select(Gallery.guiPreviewKey());
+        } else if (guiTicks == 32) {
+            ScreenShotHelper.saveScreenshot(
+                mc.mcDataDir,
+                "fc-configurator-preview.png",
+                mc.displayWidth,
+                mc.displayHeight,
+                mc.getFramebuffer());
+        } else if (guiTicks == 40) {
+            gui.selectAndApply(Gallery.guiTestKey(), Alignment.VILLAIN, false);
             guiTicks = -1;
         }
     }

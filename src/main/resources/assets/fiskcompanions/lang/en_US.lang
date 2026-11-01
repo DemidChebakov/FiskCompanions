@@ -9,6 +9,7 @@ gui.fiskcompanions.apply=Apply
 gui.fiskcompanions.bind_on=Bind to me: ON
 gui.fiskcompanions.bind_off=Bind to me: OFF
 gui.fiskcompanions.no_match=No heroes match
+gui.fiskcompanions.drag_rotate=Drag to rotate
 
 fiskcompanions.msg.stay=%s will stay here.
 fiskcompanions.msg.follow=%s will follow you.

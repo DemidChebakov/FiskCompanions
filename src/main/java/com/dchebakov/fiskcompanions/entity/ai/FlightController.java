@@ -101,8 +101,14 @@ public class FlightController {
             hero.motionX = hero.motionX * 0.6D + dx / dist * speed * 0.4D;
             hero.motionY = hero.motionY * 0.6D + dy / dist * speed * 0.4D + GRAVITY;
             hero.motionZ = hero.motionZ * 0.6D + dz / dist * speed * 0.4D;
-            hero.rotationYaw = hero.renderYawOffset = (float) (Math.atan2(dz, dx) * 180.0D / Math.PI) - 90.0F;
+            hero.rotationYaw = hero.renderYawOffset = hero.rotationYawHead = (float) (Math.atan2(dz, dx) * 180.0D
+                / Math.PI) - 90.0F;
+            hero.rotationPitch = (float) -(Math.atan2(dy, MathHelper.sqrt_double(dx * dx + dz * dz)) * 180.0D
+                / Math.PI);
+            // Sprinting while flying is Fisk's "boost": suits with a boost pose fly horizontally, arm out.
+            hero.setSprinting(dist > 6.0D);
         } else {
+            hero.setSprinting(false);
             hero.motionX *= 0.5D;
             hero.motionY = GRAVITY * 0.5D;
             hero.motionZ *= 0.5D;
@@ -112,6 +118,9 @@ public class FlightController {
     private void setFlying(boolean value) {
         flying = value;
         stateTicks = 0;
+        if (!value) {
+            hero.setSprinting(false);
+        }
         Vars.FLYING.set(hero, value)
             .sync();
     }

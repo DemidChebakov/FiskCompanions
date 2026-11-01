@@ -54,9 +54,11 @@ Hold the Configurator and **right-click the character** (without sneaking). This
 
 1. **Search box** (top): type part of a name, for example `hulk`, `iron` or `flash`.
 2. **List**: scroll with the mouse wheel and **click a suit**. The grey word in front is the heropack it comes from.
-3. **Hero / Villain button**: click to switch sides.
-4. **Bind to me**: makes you the owner. This only applies to Heroes.
-5. Click **Apply**. The character changes suit right away.
+3. **Preview** (left): shows the selected suit on a 3D figure, already transformed (Hulk green and big, Iron Man
+   nanites on). It turns slowly. **Hold the left mouse button on it and drag** to turn it yourself.
+4. **Hero / Villain button**: click to switch sides.
+5. **Bind to me**: makes you the owner. This only applies to Heroes.
+6. Click **Apply**. The character changes suit right away.
 
 Only the owner (or a player in Creative) can change a character.
 
@@ -73,6 +75,12 @@ Only the owner (or a player in Creative) can change a character.
 - Attacks every player (suited or not), plus villagers, iron/snow golems and animals.
 - Fights Heroes first when one is nearby.
 - Does nothing on **Peaceful** difficulty. Players in Creative are never attacked.
+
+**Flying.** Suits that can fly take off when their target or owner is far away or up in the air, and fly with Fisk's
+own flight animations: leaning forward when moving, lying flat and speeding when far away (boost), and hovering when
+close. They land again once they're near their target on the ground.
+
+![Flying heroes](docs/images/flight.png)
 
 **Powers.** Characters use their suit's real powers: flight, blasts and beams, fireballs, ice, heat vision,
 shields, blades, ground smash, Hulk's Thunderclap, and more. Suits that transform first (Hulk, Moon Knight, Iron Man
@@ -115,7 +123,9 @@ See [docs/fisk-internals.md](docs/fisk-internals.md).
 - One-shot powers (repulsor, energy blast, energy bolt, fireball, cryoball, icicles, ground smash) are server-side
   ports of Fisk's handlers and use the hero's own pack-defined properties.
 - Charged beams (e.g. Hulk's Thunderclap) charge and fire at the target, with at least 5 s between beams.
-- Flight works for any suit that has a flight modifier.
+- Flight works for any suit that has a flight modifier. Fisk only applies its flight body poses in `RenderPlayer`, so
+  `RenderFiskHero.rotateCorpse` calls the same `ModelHelper` rotations; flying fast counts as sprinting, which gives the
+  boost pose. Targeting searches 16 blocks up and down (vanilla: 4), so fliers find each other.
 - Suits with a toggle transformation are switched into their suited form. A transformation is kept only if it unlocks
   more powers or stronger punches, so "suit off" toggles (e.g. SecretHeroes speedster suits) are left alone.
   Size-changing heroes (Hulk) grow to full size.

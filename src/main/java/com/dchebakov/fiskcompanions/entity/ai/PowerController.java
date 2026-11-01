@@ -22,12 +22,10 @@ import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
 import com.fiskmods.heroes.client.pack.json.sound.SoundTrigger;
 import com.fiskmods.heroes.common.data.var.DataVar;
 import com.fiskmods.heroes.common.data.var.Vars;
-import com.fiskmods.heroes.common.entity.attribute.ArmorAttribute;
 import com.fiskmods.heroes.common.hero.Hero;
 import com.fiskmods.heroes.common.hero.modifier.Modifier;
 import com.fiskmods.heroes.common.hero.power.ModifierEntry;
 import com.fiskmods.heroes.common.hero.power.PowerProperty;
-import com.fiskmods.heroes.common.hero.power.prop.Transformation;
 
 /**
  * Server-side "key presses" for the mob: flips toggle powers, fires one-shot powers at the attack target, and heals a
@@ -131,43 +129,26 @@ public class PowerController {
      * covered.
      */
     private void suitUp(Hero h) {
-        h.getEnabledModifiers(hero, Modifier.TRANSFORMATION, PowerProperty.IS_TOGGLE.isValue(true))
-            .forEach(entry -> {
-                Transformation t = FiskBridge.prop(entry, PowerProperty.TRANSFORMATION, null);
-                if (t == null || !t.toggle.hasResult() || !triedTransforms.add(entry.id)) {
-                    return;
-                }
-                DataVar<Boolean> toggle = t.toggle.get();
-                if (toggle.get(hero)) {
-                    return;
-                }
-                int before = h.getEnabledModifiers(hero)
-                    .size();
-                float punchBefore = ArmorAttribute.PUNCH_DAMAGE.get(hero, h, 1.0F);
-                if (!toggle.set(hero, true)
-                    .success()) {
-                    return;
-                }
-                int after = h.getEnabledModifiers(hero)
-                    .size();
-                float punchAfter = ArmorAttribute.PUNCH_DAMAGE.get(hero, h, 1.0F);
-                if (after <= before && punchAfter <= punchBefore) {
-                    toggle.set(hero, false); // not a suit-up for this hero; never synced, so clients see no change
-                    record("transform-skipped");
-                    FiskCompanions.LOG.debug(
-                        "{}: transformation {} skipped ({} -> {} powers)",
-                        hero.getHeroKey(),
-                        entry.id,
-                        before,
-                        after);
-                    return;
-                }
-                entry.broadcastSoundAtEntity(hero, SoundTrigger.ENABLE);
-                toggle.sync(hero);
-                hero.getSize()
-                    .grow(); // size-changing transformations (Hulk) grow, as their key does for a player
-                record("transform");
-            });
+        for (ModifierEntry entry : FiskBridge.toggleTransformations(hero, h)) {
+            if (!triedTransforms.add(entry.id)) {
+                continue;
+            }
+            switch (FiskBridge.trySuitUp(hero, h, entry)) {
+                case KEPT:
+                    entry.broadcastSoundAtEntity(hero, SoundTrigger.ENABLE);
+                    FiskBridge.transformation(entry).toggle.get()
+                        .sync(hero);
+                    hero.getSize()
+                        .grow(); // size-changing transformations (Hulk) grow, as their key does for a player
+                    record("transform");
+                    break;
+                case REVERTED:
+                    record("transform-skipped"); // never synced, so clients see no change
+                    break;
+                default:
+                    break;
+            }
+        }
     }
 
     /**

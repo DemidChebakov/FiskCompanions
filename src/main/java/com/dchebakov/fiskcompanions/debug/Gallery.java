@@ -42,6 +42,10 @@ public final class Gallery {
     /** Configurator test: entity the client should open the GUI for, and the hero key it should apply. */
     private static volatile int guiEntity = -1;
     private static volatile String guiKey;
+    private static volatile String guiPreviewKey;
+    private final List<EntityFiskHero> fliers = new ArrayList<>();
+    private int flightTicks = -1;
+    private EntityFiskHero flightDummy;
 
     private EntityFiskHero guiMob;
     private String guiExpected;
@@ -84,6 +88,11 @@ public final class Gallery {
         return guiKey;
     }
 
+    /** Suit the client selects in the configurator to check that the preview follows the selection. */
+    public static String guiPreviewKey() {
+        return guiPreviewKey;
+    }
+
     public static String takeShotRequest() {
         String s = shotRequest;
         shotRequest = null;
@@ -104,6 +113,10 @@ public final class Gallery {
         }
         if (guiTicks >= 0) {
             tickGuiTest();
+            return;
+        }
+        if (flightTicks >= 0) {
+            tickFlightTest();
             return;
         }
         if (page < 0 || ++ticks >= PAGE_TICKS) {
@@ -192,6 +205,7 @@ public final class Gallery {
         world.spawnEntityInWorld(guiMob);
         guiExpected = FiskBridge.keyOf(heroes.get(heroes.size() - 1));
         guiKey = guiExpected;
+        guiPreviewKey = firstKeyContaining("iron_man_mk85", "iron_man", "");
         guiTicks = 0;
     }
 
@@ -199,7 +213,7 @@ public final class Gallery {
         ++guiTicks;
         if (guiTicks == 20) {
             guiEntity = guiMob.getEntityId(); // client opens the GUI, screenshots it, applies after a moment
-        } else if (guiTicks == 100) {
+        } else if (guiTicks == 120) {
             boolean pass = guiExpected.equals(guiMob.getHeroKey()) && guiMob.getAlignment() == Alignment.VILLAIN
                 && guiMob.getWornSuit() != null;
             String result = String.format(
@@ -213,6 +227,88 @@ public final class Gallery {
             index.add(result);
             guiMob.setDead();
             guiTicks = -1;
+            startFlightTest();
+        }
+    }
+
+    private String firstKeyContaining(String... parts) {
+        for (String part : parts) {
+            for (HeroIteration iter : heroes) {
+                if (FiskBridge.keyOf(iter)
+                    .contains(part)) {
+                    return FiskBridge.keyOf(iter);
+                }
+            }
+        }
+        return FiskBridge.keyOf(heroes.get(0));
+    }
+
+    /**
+     * Flight pose check, seen side-on: a villain dummy is held in the air in front of the camera and flying heroes
+     * take off to one side and fly across the view to attack it (boost pose on the way, hover-fighting on arrival).
+     */
+    private void startFlightTest() {
+        player.capabilities.isFlying = true;
+        player.sendPlayerAbilities();
+        flightDummy = new EntityFiskHero(world);
+        flightDummy.setLocationAndAngles(cx - 2.0D, cy + 6.0D, cz, 0.0F, 0.0F);
+        flightDummy.setAlignment(Alignment.VILLAIN);
+        flightDummy.setSitting(true);
+        flightDummy.setHero(heroes.get(0));
+        world.spawnEntityInWorld(flightDummy);
+        String[] wanted = { "iron_man_mk85", "secretheroes:homelander", "martian_manhunter", "vision" };
+        int i = 0;
+        for (String part : wanted) {
+            for (HeroIteration iter : heroes) {
+                if (FiskBridge.keyOf(iter)
+                    .contains(part) && FiskBridge.canFly(iter)) {
+                    EntityFiskHero mob = new EntityFiskHero(world);
+                    mob.setLocationAndAngles(cx - 4.0D + i * 1.5D, cy, cz - 22.0D, 0.0F, 0.0F);
+                    mob.setAlignment(Alignment.HERO);
+                    mob.setHero(iter);
+                    world.spawnEntityInWorld(mob);
+                    fliers.add(mob);
+                    ++i;
+                    break;
+                }
+            }
+        }
+        index.add("flight test: " + fliers.size() + " fliers");
+        flightTicks = 0;
+    }
+
+    private void tickFlightTest() {
+        ++flightTicks;
+        // Camera 10 blocks east of the dummy at the same height, looking west: the fliers cross the view from the
+        // right.
+        player.playerNetServerHandler.setPlayerLocation(cx + 8.0D, cy + 5.0D, cz, 90.0F, 5.0F);
+        flightDummy.setPositionAndRotation(cx - 2.0D, cy + 6.0D, cz, 90.0F, 0.0F);
+        flightDummy.motionX = flightDummy.motionY = flightDummy.motionZ = 0.0D;
+        flightDummy.setHealth(flightDummy.getMaxHealth());
+        flightDummy.setAttackTarget(null);
+        if (flightTicks == 25 || flightTicks == 35 || flightTicks == 45) {
+            shotRequest = "fc-flight-" + flightTicks;
+            for (EntityFiskHero mob : fliers) {
+                FiskCompanions.LOG.info(
+                    "[gallery] flight {} flying={} sprinting={} y={} distToTarget={}",
+                    mob.getHeroKey(),
+                    mob.getFlight()
+                        .isFlying(),
+                    mob.isSprinting(),
+                    String.format("%.1f", mob.posY),
+                    String.format("%.1f", mob.getDistanceToEntity(flightDummy)));
+            }
+        } else if (flightTicks == 100) {
+            shotRequest = "fc-flight-arrived";
+        } else if (flightTicks >= 120) {
+            for (EntityFiskHero mob : fliers) {
+                mob.setDead();
+            }
+            fliers.clear();
+            flightDummy.setDead();
+            flightTicks = -1;
+            player.capabilities.isFlying = false;
+            player.sendPlayerAbilities();
             finish();
         }
     }

@@ -666,6 +666,7 @@ public final class Gallery {
         removeAllTicks = -1;
         friendlyFireTest();
         shieldTest();
+        creeperTest();
         finish();
     }
 
@@ -783,6 +784,39 @@ public final class Gallery {
             FiskCompanions.LOG.info("[gallery] {}", result);
             index.add(result);
             zombie.setDead();
+            mob.setDead();
+        }
+    }
+
+    /** Heroes fight creepers (vanilla mobs never target them): unowned, and guarding an owner. */
+    private void creeperTest() {
+        for (boolean owned : new boolean[] { false, true }) {
+            EntityFiskHero mob = new EntityFiskHero(world);
+            mob.setLocationAndAngles(player.posX + 2.0D, player.posY, player.posZ, 0.0F, 0.0F);
+            mob.setAlignment(Alignment.HERO);
+            mob.setHero(heroes.get(0));
+            if (owned) {
+                mob.setOwnerId(player.getUniqueID());
+            }
+            world.spawnEntityInWorld(mob);
+            net.minecraft.entity.monster.EntityCreeper creeper = new net.minecraft.entity.monster.EntityCreeper(world);
+            creeper.setLocationAndAngles(player.posX + 2.0D, player.posY, player.posZ + 4.0D, 0.0F, 0.0F);
+            world.spawnEntityInWorld(creeper);
+            for (int t = 0; t < 600 && mob.getAttackTarget() != creeper; ++t) {
+                mob.targetTasks.onUpdateTasks(); // the guard task looks only now and then (1 in 10)
+            }
+            boolean pass = mob.getAttackTarget() == creeper;
+            String result = String.format(
+                "creeper test [%s]: %s (target=%s)",
+                owned ? "guarding owner" : "unowned",
+                pass ? "PASS" : "FAIL",
+                mob.getAttackTarget() == null ? "none"
+                    : mob.getAttackTarget()
+                        .getClass()
+                        .getSimpleName());
+            FiskCompanions.LOG.info("[gallery] {}", result);
+            index.add(result);
+            creeper.setDead();
             mob.setDead();
         }
     }

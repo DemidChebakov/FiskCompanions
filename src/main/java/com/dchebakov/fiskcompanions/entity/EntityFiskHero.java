@@ -545,6 +545,15 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
     }
 
     /**
+     * Vanilla mobs never target creepers or ghasts ({@code EntityLiving.canAttackClass}), so heroes ignored them.
+     * Who is an enemy is decided by the target tasks and {@link #isOnSameTeam}; any class may be fought.
+     */
+    @Override
+    public boolean canAttackClass(Class<? extends Entity> type) {
+        return true;
+    }
+
+    /**
      * Every target source (AI tasks, owner assist, guard, Fisk code) ends here: never target someone on our side
      * unless they earned a grudge under the friendly-fire settings.
      */

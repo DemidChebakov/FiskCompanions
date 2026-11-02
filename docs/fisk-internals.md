@@ -82,6 +82,8 @@ SPELLCASTING, EARTHQUAKE, LIGHTNING, CACTUS/SPIKES.
   grow to full size.
 - The menu preview's stand-in runs `DataVar.onUpdate` (local only; `DataContainer.onUpdate` syncs over the network)
   and gets both the current and previous value of interpolated timers, because renderers read interpolated timers.
+- Targets: vanilla `EntityLiving.canAttackClass` rejects creepers and ghasts and every target task checks it, so
+  `EntityFiskHero` overrides it to allow any class (sides are decided by the tasks and `isOnSameTeam`).
 - Targets: vanilla 1.7.10 `EntityAITarget.isSuitableTarget` ignores `isOnSameTeam`, so revenge targeting would hit
   players regardless of the friendly-fire settings. `EntityFiskHero.setAttackTarget` refuses same-side targets.
 - Flight speed scales with the suit's flight modifier: `speed` (default 0.1) when cruising and `boostSpeed` (default 0.2)

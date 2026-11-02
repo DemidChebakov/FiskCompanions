@@ -43,3 +43,7 @@ libs/*.jar
 build.log
 client.log
 server.log
+
+# local agent notes (point to a private vault)
+CLAUDE.md
+AGENTS.md

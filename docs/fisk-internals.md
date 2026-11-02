@@ -64,3 +64,34 @@ animation and drive motion ourselves, as `EntityIronMan` does.
 ## Not yet supported (logged)
 TELEKINESIS, TENTACLES, SHAPE_SHIFTING, TELEPORTATION,
 SPELLCASTING, EARTHQUAKE, LIGHTNING, CACTUS/SPIKES.
+
+## How the powers work in Fisk Companions
+- Toggle powers (heat vision, energy projection, sonic waves, gravity manipulation, blade, charged punch, shield) run
+  through Fisk's own modifier code. Held beams fire in bursts.
+- One-shot powers (repulsor, energy blast, energy bolt, fireball, cryoball, icicles, ground smash) are server-side
+  ports of Fisk's handlers and use the hero's own pack-defined properties.
+- Charged beams (e.g. Hulk's Thunderclap) charge and fire at the target, with at least 5 s between beams.
+- Flight works for any suit that has a flight modifier. Fisk only applies its flight body poses in `RenderPlayer`, so
+  `RenderFiskHero.rotateCorpse` calls the same `ModelHelper` rotations; flying fast counts as sprinting, which gives the
+  boost pose. Targeting searches 16 blocks up and down (vanilla: 4), so fliers find each other.
+- Suits with a toggle transformation are switched into their suited form. A transformation is kept only if it unlocks
+  more powers or stronger punches, so "suit off" toggles (e.g. SecretHeroes speedster suits) are left alone.
+  Size-changing heroes (Hulk) grow to full size.
+- Flight speed scales with the suit's flight modifier: `speed` (default 0.1) when cruising and `boostSpeed` (default 0.2)
+  when boosting; when no flight modifier is currently enabled, the suit's declared one is used.
+- Super speed: the mob sets `Vars.SPEEDING` and `Vars.SPEED` (up to `SpeedsterHelper.getMaxSpeedSetting`); Fisk's
+  `SHAttributes` then raises movement speed for any entity. Over 12 blocks it runs at full level, half level over
+  4 blocks, off in melee. Fisk only draws lightning trails for players, so `SpeedTrailRenderer` draws them from Fisk's
+  recorded trail points (`TrailHandler`) in the suit's trail colour.
+- Gadgets (`fiskheroes:equipment`): `Equipment.onUsed` spawns the projectile for any entity; the mob keeps its own
+  per-gadget cooldowns. Rapid webs call `EquipmentRapidWebs.shoot` directly.
+- Bow: Fisk's bow only fires from a player's draw; the mob fires `ArrowType.shoot` (any shooter) at full draw with
+  a trick arrow from a combat set, aiming a little high for the drop.
+- Shield throw (`shield_throwing`): Fisk only returns a thrown shield to a player and drops it as an item otherwise,
+  so the mob spawns Fisk's `EntityThrownShield`, steers it back after a short flight, and removes it without a drop.
+- Weapons (the suit's primary equipment): the melee weapon is held up close (Fisk's punch system applies weapon
+  damage) and guns at range, fired through Fisk's protected `ItemGun.trigger` via reflection with infinite ammo.
+- A body is drawn under the suit, chosen per character (`BaseSkin`): the spawning player's skin (default; their
+  already-downloaded skin when they're in the world, else Steve), Steve, or none. Heropacks are built for different
+  bodies, so this is a player choice rather than a guess.
+

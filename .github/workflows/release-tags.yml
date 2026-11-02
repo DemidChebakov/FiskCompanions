@@ -25,6 +25,7 @@ jobs:
       # Fisk's Heroes is not redistributable, so it is fetched from Modrinth at build time
       - name: Download Fisk's Heroes
         run: |
+          mkdir -p libs
           curl -fsSL -o libs/FiskHeroes-1.7.10-2.4.0.jar \
             https://cdn.modrinth.com/data/eFDDpt8w/versions/DdwTKPte/FiskHeroes-1.7.10-2.4.0.jar
 

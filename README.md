@@ -229,7 +229,8 @@ reads the tag, so the jar name and the in-game version match it.
 - **v0.1.0** is the first version, a beta. Earlier `v0.0.x` tags are development history.
 - **v0.1.1** (hotfix): heroes no longer fight back against a player who hits them while "fight back" is off; nanite
   and transform-to-suit heroes (Iron Man Mk50/Mk85, pack suits like sind's Iron Spider 17A) suit up when spawned and
-  in the menu preview, and suit up again after their nanite cooldown runs out.
+  in the menu preview, and suit up again after their nanite cooldown runs out. A player skin's hat layer (hair,
+  headphones, …) no longer draws over the suit's helmet.
 - New features bump the minor number (`0.2.0`), fixes bump the patch (`0.1.1`).
 - **1.0.0** is planned once the mod has been tested on a dedicated server and the Hero Configurator has a crafting
   recipe.

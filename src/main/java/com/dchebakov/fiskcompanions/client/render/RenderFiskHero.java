@@ -63,8 +63,19 @@ public class RenderFiskHero extends RenderBiped {
     protected void renderModel(EntityLivingBase entity, float limbSwing, float limbSwingAmount, float ageInTicks,
         float headYaw, float headPitch, float scale) {
         if (!(entity instanceof EntityFiskHero) || ((EntityFiskHero) entity).getSkin() != BaseSkin.NONE) {
+            // A skin's hat layer (hair, headphones, ...) sits outside the head and would poke through the suit's
+            // helmet, so it's only drawn when the suit leaves the head bare.
+            modelBipedMain.bipedHeadwear.showModel = !coversHead(entity);
             super.renderModel(entity, limbSwing, limbSwingAmount, ageInTicks, headYaw, headPitch, scale);
+            modelBipedMain.bipedHeadwear.showModel = true;
         }
+    }
+
+    /** A helmet piece, or a chest-only suit (nanite suits like Mk50/Mk85 build their helmet from the chestplate). */
+    private static boolean coversHead(EntityLivingBase entity) {
+        return entity.getEquipmentInSlot(4) != null
+            || entity.getEquipmentInSlot(3) != null && entity.getEquipmentInSlot(2) == null
+                && entity.getEquipmentInSlot(1) == null;
     }
 
     /**

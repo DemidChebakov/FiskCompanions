@@ -90,6 +90,12 @@ public class WeaponController {
         }
     }
 
+    /** Captain America's shield in hand (not in flight). */
+    public boolean holdsShield() {
+        ItemStack held = hero.getHeldItem();
+        return thrownShield == null && held != null && held.getItem() instanceof ItemCapsShield;
+    }
+
     public boolean holdsGun() {
         ItemStack held = hero.getHeldItem();
         return held != null && held.getItem() instanceof IGun;
@@ -128,14 +134,16 @@ public class WeaponController {
             }
         hold(wanted);
         boolean sees = target != null && hero.getEntitySenses()
-            .canSee(target);
+            .canSee(target)
+            && !hero.getShield()
+                .isBlocking(); // no shots from behind a raised shield
         if (sees && holdsBow() && !bowBroken && bowCooldown <= 0 && dist > GUN_MIN_RANGE) {
             shootArrow(target, dist);
         }
         if (sees && !shieldBroken && shieldCooldown <= 0 && dist > GUN_MIN_RANGE && dist < SHIELD_RANGE) {
             throwShield(iter, target);
         }
-        if (target != null && holdsGun()
+        if (sees && holdsGun()
             && !gunBroken
             && gunCooldown <= 0
             && hero.getEntitySenses()

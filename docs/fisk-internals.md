@@ -102,3 +102,14 @@ SPELLCASTING, EARTHQUAKE, LIGHTNING, CACTUS/SPIKES.
   already-downloaded skin when they're in the world, else Steve), Steve, or none. Heropacks are built for different
   bodies, so this is a player choice rather than a guess.
 
+## Shields (v0.2.0)
+- Fisk's `ModifierShield` reads keys only for the client player: `SHIELD_BLOCKING` = use-item key (toggle shields) or
+  the SHIELD key (`isToggle: false`, e.g. Mk50). The mob sets `SHIELD` + `SHIELD_BLOCKING` itself (`ShieldController`).
+- Blocking happens in Fisk's `CommonEntityHandler.onLivingAttack` for any entity: `ShieldHelper.getShieldInfo` (suit
+  shield while `SHIELD_BLOCKING`, else the held item) → `canShieldBlock` (coverage relative to the look direction,
+  `SHIELD_COOLDOWN`) → `Shield.hit` (shield health, breaks), knockback on melee/fall/explosion, `onShieldHit`, cancel.
+- `canShieldBlock` lets item shields (Captain America's) block only for an `EntityPlayer` that is using the item. The
+  mob runs the same steps itself in `FiskBridge.blockWithItem`, passing the item's `ShieldInfo` as a SUIT type. The
+  blocking arm pose is the vanilla `heldItemRight = 3`, synced through datawatcher 22.
+- Some suits disable their shield while aiming or flying (Mk85), so the mob drops `AIMING` while shielding, and
+  only raises a suit shield while the modifier is enabled.

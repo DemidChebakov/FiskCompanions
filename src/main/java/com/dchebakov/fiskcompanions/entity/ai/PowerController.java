@@ -125,14 +125,17 @@ public class PowerController {
             .anyMatch(Abilities::isRanged);
         ranged |= hero.getWeapons()
             .holdsGun();
-        setVar(Vars.AIMING, sees && ranged && dist > 3.0D);
+        boolean shielding = hero.getShield()
+            .isBlocking();
+        // No aiming behind a raised shield: some suits (Mk85) disable their shield while aiming.
+        setVar(Vars.AIMING, sees && ranged && dist > 3.0D && !shielding);
 
         boolean beaming = updateToggles(h, target, dist, sees);
         beaming |= updateChargedBeam(h, target, dist, sees);
         if (beaming) {
             hero.faceEntity(target);
         }
-        if (sees && globalCooldown <= 0 && !fireShot(h, target, dist)) {
+        if (sees && !shielding && globalCooldown <= 0 && !fireShot(h, target, dist)) {
             useGadget(h, target, dist);
         }
         healOwner();
@@ -225,9 +228,6 @@ public class PowerController {
                         break;
                     case MELEE:
                         want = dist <= toggle.range(entry);
-                        break;
-                    case DEFENSIVE:
-                        want = hero.ticksExisted - lastHurtTick < RECENT_HURT_TICKS;
                         break;
                 }
             }

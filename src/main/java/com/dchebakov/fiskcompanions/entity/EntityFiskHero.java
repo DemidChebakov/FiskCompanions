@@ -39,6 +39,7 @@ import com.dchebakov.fiskcompanions.entity.ai.AIOwnerHurtByTarget;
 import com.dchebakov.fiskcompanions.entity.ai.AIOwnerHurtTarget;
 import com.dchebakov.fiskcompanions.entity.ai.FlightController;
 import com.dchebakov.fiskcompanions.entity.ai.PowerController;
+import com.dchebakov.fiskcompanions.entity.ai.ShieldController;
 import com.dchebakov.fiskcompanions.entity.ai.SizeController;
 import com.dchebakov.fiskcompanions.entity.ai.SpeedController;
 import com.dchebakov.fiskcompanions.entity.ai.WeaponController;
@@ -69,6 +70,7 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
     private static final int DW_SITTING = 19;
     private static final int DW_SKIN = 20;
     private static final int DW_SKIN_PLAYER = 21;
+    private static final int DW_BLOCKING = 22;
 
     public final DataContainer data = new DataContainer(DataSyncer.PLAYER);
     private HeroIteration wornSuit;
@@ -77,6 +79,7 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
     private final SizeController size = new SizeController(this);
     private final WeaponController weapons = new WeaponController(this);
     private final SpeedController speed = new SpeedController(this);
+    private final ShieldController shield = new ShieldController(this);
     private float appliedScale = 1.0F;
 
     public EntityFiskHero(World world) {
@@ -134,6 +137,7 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         dataWatcher.addObject(DW_SITTING, (byte) 0);
         dataWatcher.addObject(DW_SKIN, (byte) BaseSkin.PLAYER.ordinal());
         dataWatcher.addObject(DW_SKIN_PLAYER, "");
+        dataWatcher.addObject(DW_BLOCKING, (byte) 0);
     }
 
     @Override
@@ -226,6 +230,7 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
                     flight.update();
                     speed.update();
                     weapons.update();
+                    shield.update();
                     powers.update();
                 } catch (RuntimeException e) {
                     controllersBroken = true; // usually a heropack script that only works on players
@@ -286,6 +291,21 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         return speed;
     }
 
+    public ShieldController getShield() {
+        return shield;
+    }
+
+    /** Synced for the renderer: blocking with an item shield (Captain America's raised-shield arm pose). */
+    public boolean isBlockingWithItem() {
+        return dataWatcher.getWatchableObjectByte(DW_BLOCKING) != 0;
+    }
+
+    public void setBlockingFlag(boolean blocking) {
+        if (isBlockingWithItem() != blocking) {
+            dataWatcher.updateObject(DW_BLOCKING, (byte) (blocking ? 1 : 0));
+        }
+    }
+
     public WeaponController getWeapons() {
         return weapons;
     }
@@ -315,6 +335,7 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         FiskBridge.equip(this, iter);
         wornSuit = FiskBridge.computeWornSuit(this);
         powers.reset();
+        shield.reset();
         setHealth(getMaxHealth());
     }
 
@@ -483,8 +504,23 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
                     grudge = true;
                 }
         }
+        if (!worldObj.isRemote) {
+            shield.onAttacked(source);
+            if (shield.isBlockingWithItem() && getHeldItem() != null) {
+                FiskBridge.Block block = FiskBridge.blockWithItem(this, source, amount, getHeldItem());
+                if (block == FiskBridge.Block.BLOCKED) {
+                    if (grudge) {
+                        holdGrudge(attacker);
+                    }
+                    return false;
+                }
+            }
+        }
         try {
             if (!super.attackEntityFrom(source, amount)) {
+                if (grudge && shield.isBlocking()) {
+                    holdGrudge(attacker); // a suit shield blocked it: still counts as an attack
+                }
                 return false;
             }
         } catch (RuntimeException e) {
@@ -493,11 +529,15 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         }
         powers.onHurt();
         if (grudge) {
-            grudgeId = attacker.getUniqueID();
-            grudgeUntil = ticksExisted + GRUDGE_TICKS;
-            setAttackTarget((EntityLivingBase) attacker);
+            holdGrudge(attacker);
         }
         return true;
+    }
+
+    private void holdGrudge(Entity attacker) {
+        grudgeId = attacker.getUniqueID();
+        grudgeUntil = ticksExisted + GRUDGE_TICKS;
+        setAttackTarget((EntityLivingBase) attacker);
     }
 
     private boolean holdsGrudge(Entity other) {

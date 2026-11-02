@@ -16,9 +16,7 @@ public final class ToggleAbility {
         /** On while the target is visible and within the modifier's range (beams). */
         BEAM,
         /** On while fighting at close range (blades, charged fists). */
-        MELEE,
-        /** On while fighting and recently hurt (shields). */
-        DEFENSIVE
+        MELEE
     }
 
     public final Modifier modifier;

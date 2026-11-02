@@ -7,6 +7,7 @@ import java.util.List;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.DamageSource;
 
 import com.fiskmods.heroes.FiskHeroes;
 import com.fiskmods.heroes.common.data.var.DataVar;
@@ -21,6 +22,11 @@ import com.fiskmods.heroes.common.hero.power.ModifierEntry;
 import com.fiskmods.heroes.common.hero.power.PowerProperty;
 import com.fiskmods.heroes.common.hero.power.prop.Cooldown;
 import com.fiskmods.heroes.common.hero.power.prop.Transformation;
+import com.fiskmods.heroes.common.shield.Coverage;
+import com.fiskmods.heroes.common.shield.Shield;
+import com.fiskmods.heroes.common.shield.ShieldHelper;
+import com.fiskmods.heroes.common.shield.ShieldInfo;
+import com.fiskmods.heroes.util.FiskServerUtils;
 import com.fiskmods.heroes.util.SHHelper;
 
 import cpw.mods.fml.common.gameevent.TickEvent;
@@ -246,6 +252,84 @@ public final class FiskBridge {
         if (transformed && size != null) {
             Vars.SCALE.set(entity, prop(size, PowerProperty.MAX_SIZE, 1.0F));
         }
+    }
+
+    /** Outcome of {@link #blockWithItem}. */
+    public enum Block {
+        /** Not blocked: the hit goes through as usual. */
+        NONE,
+        /** Blocked: no damage. */
+        BLOCKED,
+        /** The shield took the hit and broke: the damage goes through. */
+        BROKE
+    }
+
+    /**
+     * Fisk's shield block (its {@code LivingAttackEvent} handler) for an item shield held by a non-player. Fisk's
+     * {@code canShieldBlock} only lets players block with an item, so the item's shield info is passed as a suit
+     * shield, which takes Fisk's normal coverage, shield-health and knockback rules. The item takes no wear (the
+     * character's shield is its own and never breaks as an item).
+     */
+    public static Block blockWithItem(EntityLivingBase entity, DamageSource source, float amount, ItemStack stack) {
+        ShieldInfo item = ShieldInfo.from(stack);
+        if (item == null) {
+            return Block.NONE;
+        }
+        ShieldInfo info = new ShieldInfo() {
+
+            @Override
+            public void onShieldHit(EntityLivingBase e, ItemStack s, float a, boolean broke) {
+                item.onShieldHit(e, s, a, broke);
+            }
+
+            @Override
+            public Shield getShield() {
+                return item.getShield();
+            }
+
+            @Override
+            public Coverage getCoverage() {
+                return item.getCoverage();
+            }
+
+            @Override
+            public float getKnockback() {
+                return item.getKnockback();
+            }
+
+            @Override
+            public ShieldInfo.ShieldType getShieldType() {
+                return ShieldInfo.ShieldType.SUIT;
+            }
+        };
+        if (!ShieldHelper.canShieldBlock(entity, source, info)) {
+            return Block.NONE;
+        }
+        if (entity.hurtResistantTime != 0) {
+            return Block.BLOCKED;
+        }
+        boolean broke = info.getShield()
+            .hit(entity, amount);
+        EntityLivingBase attacker = FiskServerUtils.getAttacker(source);
+        if (attacker != null
+            && (source == DamageSource.fall || source.isExplosion() || FiskServerUtils.isMeleeDamage(source))) {
+            float knockback = info.getKnockback();
+            if (broke) {
+                knockback = Math.max(knockback * 1.5F, 0.3F);
+            }
+            if (knockback != 0.0F) {
+                SHHelper.knockback(entity, attacker, Math.min(amount, 20.0F) * knockback);
+            }
+        }
+        if (broke) {
+            info.onShieldHit(entity, stack, amount, true);
+            return Block.BROKE;
+        }
+        entity.hurtResistantTime = 7;
+        if (!source.isExplosion()) {
+            info.onShieldHit(entity, stack, amount, false);
+        }
+        return Block.BLOCKED;
     }
 
     /** True if the hero has a flight modifier (mobs fly with any of them). */

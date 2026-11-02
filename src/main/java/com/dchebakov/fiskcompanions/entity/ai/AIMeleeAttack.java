@@ -71,7 +71,9 @@ public class AIMeleeAttack extends EntityAIBase {
         double dist = hero.getDistanceSq(target.posX, target.boundingBox.minY, target.posZ);
         boolean inReach = dist <= reach + 1.0D || hero.boundingBox.expand(1.0D, 1.5D, 1.0D)
             .intersectsWith(target.boundingBox);
-        if (inReach && attackTimer <= 0) {
+        if (inReach && attackTimer <= 0
+            && !hero.getShield()
+                .isBlocking()) {
             attackTimer = ATTACK_INTERVAL;
             hero.attackEntityAsMob(target);
         }

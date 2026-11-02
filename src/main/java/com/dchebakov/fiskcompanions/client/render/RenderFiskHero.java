@@ -5,8 +5,10 @@ import net.minecraft.client.entity.AbstractClientPlayer;
 import net.minecraft.client.model.ModelBiped;
 import net.minecraft.client.renderer.entity.RenderBiped;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.Vec3;
 
@@ -34,6 +36,15 @@ public class RenderFiskHero extends RenderBiped {
 
     public RenderFiskHero() {
         super(new ModelBiped(), 0.5F);
+    }
+
+    /** Captain America's shield raised to block: the vanilla blocking arm pose (as a player blocking with a sword). */
+    @Override
+    protected void func_82420_a(EntityLiving entity, ItemStack held) {
+        super.func_82420_a(entity, held);
+        if (held != null && entity instanceof EntityFiskHero && ((EntityFiskHero) entity).isBlockingWithItem()) {
+            field_82423_g.heldItemRight = field_82425_h.heldItemRight = modelBipedMain.heldItemRight = 3;
+        }
     }
 
     /** Fisk only scales players in their renderer; apply the synced scale (size manipulation, e.g. Hulk). */

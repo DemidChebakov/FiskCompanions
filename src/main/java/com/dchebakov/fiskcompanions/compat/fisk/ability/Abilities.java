@@ -40,8 +40,8 @@ public final class Abilities {
         new ToggleAbility(Modifier.SONIC_WAVES, Vars.SONIC_WAVES, Mode.BEAM, 12.0F),
         new ToggleAbility(Modifier.GRAVITY_MANIPULATION, Vars.GRAVITY_MANIP, Mode.BEAM, 24.0F),
         new ToggleAbility(Modifier.BLADE, Vars.BLADE, Mode.MELEE, 6.0F),
-        new ToggleAbility(Modifier.CHARGED_PUNCH, Vars.PUNCHMODE, Mode.MELEE, 6.0F),
-        new ToggleAbility(Modifier.SHIELD, Vars.SHIELD, Mode.DEFENSIVE, 0.0F));
+        new ToggleAbility(Modifier.CHARGED_PUNCH, Vars.PUNCHMODE, Mode.MELEE, 6.0F));
+    // SHIELD is not a toggle here: ShieldController raises it against incoming attacks.
 
     /** In priority order: the first usable shot wins each decision. */
     public static final List<ShotAbility> SHOTS = ImmutableList.of(

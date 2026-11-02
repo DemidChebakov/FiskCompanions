@@ -616,6 +616,7 @@ public final class Gallery {
         }
         removeAllTicks = -1;
         friendlyFireTest();
+        shieldTest();
         finish();
     }
 
@@ -680,6 +681,61 @@ public final class Gallery {
         }
         rules.set(savedFight, savedAlly);
         player.setGameType(net.minecraft.world.WorldSettings.GameType.CREATIVE);
+    }
+
+    /**
+     * Shield blocks: Iron Man Mk50 (suit nanite shield, blocked by Fisk's own handler) and Captain America (item
+     * shield, blocked by our port). A zombie in front hits once, the character raises its shield, the second hit must
+     * do no damage.
+     */
+    private void shieldTest() {
+        String[] keys = { "fiskheroes:iron_man_mk50", "fiskheroes:captain_america" };
+        for (String key : keys) {
+            HeroIteration iter = FiskBridge.lookup(key);
+            if (iter == null) {
+                continue;
+            }
+            EntityFiskHero mob = new EntityFiskHero(world);
+            mob.setLocationAndAngles(cx, cy, cz - 40.0D, 0.0F, 0.0F);
+            mob.setAlignment(Alignment.HERO);
+            mob.setSitting(true);
+            mob.setHero(iter);
+            world.spawnEntityInWorld(mob);
+            net.minecraft.entity.monster.EntityZombie zombie = new net.minecraft.entity.monster.EntityZombie(world);
+            zombie.setLocationAndAngles(cx, cy, cz - 38.0D, 180.0F, 0.0F); // 2 blocks in front (mob faces +Z)
+            world.spawnEntityInWorld(zombie);
+            for (int t = 0; t < 45; ++t) {
+                ++mob.ticksExisted; // the world tick does this, onUpdate doesn't
+                mob.onUpdate(); // suit up (Mk50 nanites) and take the shield in hand (Captain America)
+            }
+            mob.hurtResistantTime = 0;
+            mob.attackEntityFrom(DamageSource.causeMobDamage(zombie), 4.0F);
+            for (int t = 0; t < 4; ++t) {
+                ++mob.ticksExisted;
+                mob.onUpdate(); // raises the shield and turns to the attacker
+            }
+            boolean raised = mob.getShield()
+                .isBlocking();
+            mob.hurtResistantTime = 0;
+            float before = mob.getHealth();
+            mob.attackEntityFrom(DamageSource.causeMobDamage(zombie), 4.0F);
+            boolean blocked = mob.getHealth() >= before;
+            boolean pass = raised && blocked;
+            String result = String.format(
+                "shield test [%s]: %s (raised=%s blocked=%s held=%s uses=%s)",
+                key,
+                pass ? "PASS" : "FAIL",
+                raised,
+                blocked,
+                mob.getHeldItem() != null ? mob.getHeldItem()
+                    .getUnlocalizedName() : "-",
+                mob.getPowers()
+                    .getUsage());
+            FiskCompanions.LOG.info("[gallery] {}", result);
+            index.add(result);
+            zombie.setDead();
+            mob.setDead();
+        }
     }
 
     private EntityFiskHero testMob(double dx) {

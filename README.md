@@ -15,7 +15,7 @@ from Fisk's Heroes or from any heropack you have installed, and uses that suit's
 
 ![Characters wearing SecretHeroes suits](docs/images/heroes-secretheroes.png)
 
-> **Beta.** v0.1.1 is the current version (v0.1.0 was the first public one). It has been tested in singleplayer; dedicated-server play is untested.
+> **Beta.** v0.2.0 is the current version (v0.1.0 was the first public one). It has been tested in singleplayer; dedicated-server play is untested.
 
 ## Contents
 - [Download](#download)
@@ -32,7 +32,7 @@ from Fisk's Heroes or from any heropack you have installed, and uses that suit's
 ---
 
 ## Download
-Get `fiskcompanions-v0.1.1.jar` from the **[latest release](https://github.com/DemidChebakov/FiskCompanions/releases/latest)**.
+Get `fiskcompanions-v0.2.0.jar` from the **[latest release](https://github.com/DemidChebakov/FiskCompanions/releases/latest)**.
 
 ## Requirements
 | Thing | Version |
@@ -163,6 +163,12 @@ Characters use their suit's real powers: flight, blasts and beams, fireballs, ic
 ground smash, Hulk's Thunderclap, and more. Suits that transform first (Hulk, Moon Knight, Iron Man Mk50 nanites)
 transform by themselves. Strength, healing factor and resistances work just like on a player.
 
+**Shields.** Characters raise their shield to defend: against a projectile flying at them, an opponent swinging at
+them in reach, or whoever just hit them. They block in short bursts, so they still fight back. This covers suit
+shields and protective fields (Iron Man Mk50/Mk85 nanite shields, Doctor Strange's shield, wide energy fields) and
+Captain America's shield, which he raises like a player blocking. Blocks follow Fisk's rules: only hits from the
+covered side are stopped, shields take damage and can break, and melee attackers are knocked back.
+
 ![Iron Man suits from Fisk's Heroes](docs/images/heroes-iron-man.png)
 
 ### Flying
@@ -189,7 +195,7 @@ arrives in about half a second, while a normal hero needs more than two seconds.
 | Spider-Man (every version) | Web shooters: sticky, impact, ricochet and rapid webs |
 | Batman | Batarangs, smoke pellets, freeze grenades |
 | Deadpool | Desert Eagles at range (dual), katana up close |
-| Captain America | Throws his shield at targets (it flies back to him), and uses it as a melee weapon |
+| Captain America | Throws his shield at targets (it flies back to him), blocks with it, and uses it as a melee weapon |
 | Green Arrow | Compound bow with trick arrows: normal, explosive, triple, boxing glove, fire charge |
 | Any heropack suit | Its own gadgets and weapons, if it defines them |
 
@@ -231,6 +237,8 @@ reads the tag, so the jar name and the in-game version match it.
   and transform-to-suit heroes (Iron Man Mk50/Mk85, pack suits like sind's Iron Spider 17A) suit up when spawned and
   in the menu preview, and suit up again after their nanite cooldown runs out. A player skin's hat layer (hair,
   headphones, …) no longer draws over the suit's helmet.
+- **v0.2.0**: characters defend with shields: suit shields and protective fields (nanite shields, Doctor Strange)
+  and Captain America's shield.
 - New features bump the minor number (`0.2.0`), fixes bump the patch (`0.1.1`).
 - **1.0.0** is planned once the mod has been tested on a dedicated server and the Hero Configurator has a crafting
   recipe.

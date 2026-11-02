@@ -110,9 +110,13 @@ SPELLCASTING, EARTHQUAKE, LIGHTNING, CACTUS/SPIKES.
   `SHIELD_COOLDOWN`) → `Shield.hit` (shield health, breaks), knockback on melee/fall/explosion, `onShieldHit`, cancel.
 - `canShieldBlock` lets item shields (Captain America's) block only for an `EntityPlayer` that is using the item. The
   mob runs the same steps itself in `FiskBridge.blockWithItem`, passing the item's `ShieldInfo` as a SUIT type. The
-  blocking state is synced through datawatcher 22. Fisk only draws the raised shield for a player using the item (its
-  `RenderItemCapsShield` even reads the local player for other entities), so `RenderFiskHero.renderEquippedItems`
-  draws it on the torso: `bipedBody.postRender`, translate (0, 0.375, -0.25), rotate 90° about X, then
-  `RenderItemCapsShield.render(stack, entity, false)`; the arm stays down (`heldItemRight = 0`, as Fisk does).
+  blocking state is synced through datawatcher 22.
+- Blocking pose: Fisk's ASM hook on `ModelBiped.setRotationAngles` (`ModelHelper.setRotationAngles`) poses every biped
+  model, body and suit layers alike, from the held item's `IAnimatedItem.applyItemAnimations`. Captain America's
+  shield does it only for a player using it (right arm X -= 1.1424779, Y = -0.9). While a mob blocks,
+  `RenderFiskHero` swaps in the never-obtainable `ItemShieldPose` (same arm angles, any entity) around the body
+  model render and each suit-layer render (`PosedModel` wrapper on `renderPassModel`), then restores the shield. The
+  shield itself is drawn on the torso in front of the hand (translate (0.1, 0.375, -0.45), 90° about X), because
+  Fisk's shield renderer only raises it for players (and reads the local player for other entities).
 - Some suits disable their shield while aiming or flying (Mk85), so the mob drops `AIMING` while shielding, and
   only raises a suit shield while the modifier is enabled.

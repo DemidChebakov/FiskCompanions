@@ -7,6 +7,7 @@ import com.dchebakov.fiskcompanions.debug.Gallery;
 import com.dchebakov.fiskcompanions.debug.SelfTest;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
 import com.dchebakov.fiskcompanions.item.ItemHeroConfigurator;
+import com.dchebakov.fiskcompanions.item.ItemShieldPose;
 import com.dchebakov.fiskcompanions.network.PacketConfigureHero;
 import com.dchebakov.fiskcompanions.network.PacketRemoveAll;
 import com.dchebakov.fiskcompanions.network.PacketSettingsSync;
@@ -28,10 +29,14 @@ public class CommonProxy {
 
     public static SimpleNetworkWrapper network;
     public static ItemHeroConfigurator configurator;
+    /** Render-only stand-in for a blocking character's arm pose; never in an inventory. */
+    public static ItemShieldPose shieldPose;
 
     public void preInit(FMLPreInitializationEvent event) {
         configurator = new ItemHeroConfigurator();
         GameRegistry.registerItem(configurator, "hero_configurator");
+        shieldPose = new ItemShieldPose();
+        GameRegistry.registerItem(shieldPose, "shield_pose");
 
         EntityRegistry.registerModEntity(EntityFiskHero.class, "FiskHero", 0, FiskCompanions.instance, 80, 1, true);
 

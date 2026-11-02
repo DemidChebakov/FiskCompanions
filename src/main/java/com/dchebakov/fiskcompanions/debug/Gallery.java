@@ -438,7 +438,7 @@ public final class Gallery {
         HeroIteration cap = FiskBridge.lookup("fiskheroes:captain_america");
         if (cap != null) {
             EntityFiskHero b = new EntityFiskHero(world);
-            b.setLocationAndAngles(cx + 4.0D, cy, cz - 6.0D, 270.0F, 0.0F);
+            b.setLocationAndAngles(cx + 8.0D, cy, cz - 10.0D, 270.0F, 0.0F);
             b.setAlignment(Alignment.HERO);
             b.setSitting(true);
             b.setHero(cap);
@@ -461,15 +461,10 @@ public final class Gallery {
             mob.setPositionAndRotation(cx - 2.0D + i * 4.0D, cy, cz, 180.0F, 0.0F); // keep them at range
             mob.setAttackTarget(weaponsDummy);
         }
-        for (int i = 0; i < blockers.size(); ++i) {
-            // Captain America holding his shield up, facing the camera, for the blocking-pose screenshots.
-            EntityFiskHero b = blockers.get(i);
-            b.setPositionAndRotation(
-                cx + 4.0D,
-                cy,
-                cz - 6.0D + (i - (blockers.size() - 1) / 2.0D) * 1.6D,
-                270.0F,
-                0.0F);
+        for (EntityFiskHero b : blockers) {
+            // Captain America holding his shield up, facing the camera, for the blocking-pose screenshots. Kept (and
+            // the cameras below) clear of the shield-throw lane: a thrown shield hitting the player drops as an item.
+            b.setPositionAndRotation(cx + 8.0D, cy, cz - 10.0D, 270.0F, 0.0F);
             b.rotationYawHead = b.renderYawOffset = 270.0F;
             b.getShield()
                 .forceBlockForTest();
@@ -478,13 +473,24 @@ public final class Gallery {
             player.playerNetServerHandler.setPlayerLocation(cx + 8.0D, cy + 2.0D, cz - 6.0D, 90.0F, 5.0F);
             shotRequest = "fc-weapons";
         }
-        if (weaponsTicks == 35) {
-            player.playerNetServerHandler.setPlayerLocation(cx + 7.0D, cy + 0.3D, cz - 6.0D, 90.0F, 0.0F);
+        // Teleport a few ticks before each shot so the client has the new view when the screenshot is taken.
+        if (weaponsTicks == 32) {
+            player.playerNetServerHandler.setPlayerLocation(cx + 11.0D, cy + 0.3D, cz - 10.0D, 90.0F, 0.0F);
+        }
+        if (weaponsTicks == 37) {
             shotRequest = "fc-shield-block-front";
         }
-        if (weaponsTicks == 45) {
-            player.playerNetServerHandler.setPlayerLocation(cx + 7.0D, cy + 0.5D, cz - 4.0D, 135.0F, 5.0F);
+        if (weaponsTicks == 42) {
+            player.playerNetServerHandler.setPlayerLocation(cx + 11.0D, cy + 0.5D, cz - 8.0D, 135.0F, 5.0F);
+        }
+        if (weaponsTicks == 47) {
             shotRequest = "fc-shield-block-side";
+        }
+        if (weaponsTicks == 52) {
+            player.playerNetServerHandler.setPlayerLocation(cx + 5.5D, cy + 0.5D, cz - 8.5D, 240.0F, 5.0F);
+        }
+        if (weaponsTicks == 57) {
+            shotRequest = "fc-shield-block-back";
         }
         if (weaponsTicks < 140) {
             return;
@@ -510,13 +516,19 @@ public final class Gallery {
             mob.setDead();
         }
         int dropped = 0;
+        List<String> names = new ArrayList<>();
         for (Object o : world.loadedEntityList) {
-            if (o instanceof net.minecraft.entity.item.EntityItem) ++dropped;
+            if (o instanceof net.minecraft.entity.item.EntityItem) {
+                ++dropped;
+                ItemStack st = ((net.minecraft.entity.item.EntityItem) o).getEntityItem();
+                names.add(st != null ? st.getUnlocalizedName() : "?");
+            }
         }
         String drops = String.format(
-            "weapons test [no free items dropped]: %s (%d item entities)",
+            "weapons test [no free items dropped]: %s (%d item entities %s)",
             dropped == 0 ? "PASS" : "FAIL",
-            dropped);
+            dropped,
+            names);
         FiskCompanions.LOG.info("[gallery] {}", drops);
         index.add(drops);
         gunners.clear();

@@ -2,6 +2,7 @@ package com.dchebakov.fiskcompanions.client.render;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.AbstractClientPlayer;
+import net.minecraft.client.model.ModelBase;
 import net.minecraft.client.model.ModelBiped;
 import net.minecraft.client.renderer.entity.RenderBiped;
 import net.minecraft.entity.Entity;
@@ -14,6 +15,7 @@ import net.minecraft.util.Vec3;
 
 import org.lwjgl.opengl.GL11;
 
+import com.dchebakov.fiskcompanions.CommonProxy;
 import com.dchebakov.fiskcompanions.entity.BaseSkin;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
 import com.fiskmods.heroes.client.animation.GLProxy;
@@ -76,9 +78,10 @@ public class RenderFiskHero extends RenderBiped {
         }
         GL11.glPushMatrix();
         try {
-            // Held flat against the front of the torso, face out, like a player blocking with it.
+            // Face out over the chest, just in front of the hand: in the block pose (arm X -1.14, Y -0.9 from the
+            // shoulder at (-5, 2, 0) px) the hand ends at about (2, 6, -5.7) px, so the arm grips it from behind.
             modelBipedMain.bipedBody.postRender(0.0625F);
-            GL11.glTranslatef(0.0F, 0.375F, -0.25F);
+            GL11.glTranslatef(0.1F, 0.375F, -0.45F);
             GL11.glRotatef(90.0F, 1.0F, 0.0F, 0.0F);
             RenderItemCapsShield.render(shield, entity, false);
         } finally {
@@ -116,8 +119,73 @@ public class RenderFiskHero extends RenderBiped {
             // A skin's hat layer (hair, headphones, ...) sits outside the head and would poke through the suit's
             // helmet, so it's only drawn when the suit leaves the head bare.
             modelBipedMain.bipedHeadwear.showModel = !coversHead(entity);
-            super.renderModel(entity, limbSwing, limbSwingAmount, ageInTicks, headYaw, headPitch, scale);
-            modelBipedMain.bipedHeadwear.showModel = true;
+            ItemStack held = posingShieldArm(entity);
+            try {
+                super.renderModel(entity, limbSwing, limbSwingAmount, ageInTicks, headYaw, headPitch, scale);
+            } finally {
+                restoreHeld(entity, held);
+                modelBipedMain.bipedHeadwear.showModel = true;
+            }
+        }
+    }
+
+    private static final ItemStack SHIELD_POSE = new ItemStack(CommonProxy.shieldPose);
+
+    /**
+     * While a character blocks with Captain America's shield, its held item is briefly the pose stand-in, so Fisk's
+     * model hook raises the right arm across the chest on the body and on every suit layer (as for a blocking
+     * player). Returns the real held item to put back, or null if nothing was swapped.
+     */
+    private static ItemStack posingShieldArm(EntityLivingBase entity) {
+        if (!isBlockingWithShield(entity)) {
+            return null;
+        }
+        ItemStack held = entity.getHeldItem();
+        entity.setCurrentItemOrArmor(0, SHIELD_POSE);
+        return held;
+    }
+
+    private static void restoreHeld(EntityLivingBase entity, ItemStack held) {
+        if (held != null) {
+            entity.setCurrentItemOrArmor(0, held);
+        }
+    }
+
+    /** Suit layers are drawn by their own models in the armor passes: pose those too. */
+    @Override
+    protected int shouldRenderPass(EntityLiving entity, int pass, float partialTicks) {
+        int result = super.shouldRenderPass(entity, pass, partialTicks);
+        if (result > 0 && renderPassModel != null && isBlockingWithShield(entity)) {
+            renderPassModel = new PosedModel(renderPassModel);
+        }
+        return result;
+    }
+
+    /** Delegates to a suit layer's model with the pose stand-in held while it sets its angles and renders. */
+    private static final class PosedModel extends ModelBase {
+
+        private final ModelBase inner;
+
+        PosedModel(ModelBase inner) {
+            this.inner = inner;
+        }
+
+        @Override
+        public void setLivingAnimations(EntityLivingBase entity, float limbSwing, float limbSwingAmount,
+            float partialTicks) {
+            inner.setLivingAnimations(entity, limbSwing, limbSwingAmount, partialTicks);
+        }
+
+        @Override
+        public void render(Entity entity, float limbSwing, float limbSwingAmount, float ageInTicks, float headYaw,
+            float headPitch, float scale) {
+            EntityLivingBase living = (EntityLivingBase) entity;
+            ItemStack held = posingShieldArm(living);
+            try {
+                inner.render(entity, limbSwing, limbSwingAmount, ageInTicks, headYaw, headPitch, scale);
+            } finally {
+                restoreHeld(living, held);
+            }
         }
     }
 

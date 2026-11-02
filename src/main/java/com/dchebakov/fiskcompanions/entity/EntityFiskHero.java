@@ -9,7 +9,6 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityCreature;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
-import net.minecraft.entity.ai.EntityAIHurtByTarget;
 import net.minecraft.entity.ai.EntityAILookIdle;
 import net.minecraft.entity.ai.EntityAISwimming;
 import net.minecraft.entity.ai.EntityAIWander;
@@ -33,6 +32,7 @@ import com.dchebakov.fiskcompanions.FiskCompanions;
 import com.dchebakov.fiskcompanions.compat.fisk.FiskBridge;
 import com.dchebakov.fiskcompanions.entity.ai.AIFollowOwner;
 import com.dchebakov.fiskcompanions.entity.ai.AIGuardOwner;
+import com.dchebakov.fiskcompanions.entity.ai.AIHurtByTarget;
 import com.dchebakov.fiskcompanions.entity.ai.AIMeleeAttack;
 import com.dchebakov.fiskcompanions.entity.ai.AINearestTarget;
 import com.dchebakov.fiskcompanions.entity.ai.AIOwnerHurtByTarget;
@@ -99,7 +99,7 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         // Each target task is gated by alignment, so switching alignment needs no task rebuild.
         targetTasks.addTask(1, new AIOwnerHurtByTarget(this));
         targetTasks.addTask(2, new AIOwnerHurtTarget(this));
-        targetTasks.addTask(3, new EntityAIHurtByTarget(this, false));
+        targetTasks.addTask(3, new AIHurtByTarget(this));
         targetTasks.addTask(
             4,
             new AINearestTarget(
@@ -324,6 +324,26 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         wornSuit = FiskBridge.computeWornSuit(this);
     }
 
+    /**
+     * Client-only preview tick for the never-spawned stand-in: advances Fisk's data vars locally (each interpolated
+     * timer's previous value catches up), as Fisk does for real non-player entities. Without it, renderers that read
+     * interpolated transformation timers (Mk50/Mk85 nanites) draw the suit half-built. Deliberately not the suit tick
+     * or {@code data.onUpdate}: those can sync over the network, and this entity's id means nothing to the server.
+     */
+    public void tickPreview() {
+        ++ticksExisted;
+        if (suitScriptBroken) {
+            return;
+        }
+        try {
+            wornSuit = FiskBridge.computeWornSuit(this);
+            FiskBridge.updateDataLocally(this);
+        } catch (RuntimeException e) {
+            suitScriptBroken = true;
+            reportScriptError("preview", e);
+        }
+    }
+
     public Alignment getAlignment() {
         return Alignment.byId(dataWatcher.getWatchableObjectByte(DW_ALIGNMENT));
     }
@@ -482,6 +502,15 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
 
     private boolean holdsGrudge(Entity other) {
         return grudgeId != null && ticksExisted < grudgeUntil && grudgeId.equals(other.getUniqueID());
+    }
+
+    /**
+     * Every target source (AI tasks, owner assist, guard, Fisk code) ends here: never target someone on our side
+     * unless they earned a grudge under the friendly-fire settings.
+     */
+    @Override
+    public void setAttackTarget(EntityLivingBase target) {
+        super.setAttackTarget(target != null && isOnSameTeam(target) ? null : target);
     }
 
     @Override

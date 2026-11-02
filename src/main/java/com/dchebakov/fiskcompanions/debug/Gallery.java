@@ -629,10 +629,14 @@ public final class Gallery {
         boolean savedFight = rules.fightBackPlayers, savedAlly = rules.allyFriendlyFire;
         player.setGameType(net.minecraft.world.WorldSettings.GameType.SURVIVAL);
         String[] names = { "ally fire OFF: no damage", "ally fire ON: damage + retaliation",
-            "fight back OFF: no retaliation", "fight back ON: retaliation" };
-        for (int c = 0; c < 4; ++c) {
+            "fight back OFF: no retaliation", "fight back ON: retaliation",
+            "fight back OFF, hit by owner: no retaliation" };
+        for (int c = 0; c < 5; ++c) {
             rules.set(c == 3, c == 1);
             EntityFiskHero a = testMob(-2.0D), b = testMob(2.0D);
+            if (c == 4) {
+                b.setOwnerId(player.getUniqueID());
+            }
             float before = b.getHealth();
             if (c < 2) {
                 b.hurtResistantTime = 0;
@@ -642,6 +646,10 @@ public final class Gallery {
                 b.attackEntityFrom(DamageSource.causePlayerDamage(player), 4.0F);
             }
             boolean hurt = b.getHealth() < before;
+            // Revenge targeting happens in the target AI on later ticks (every 3rd update), not in the hit itself.
+            for (int t = 0; t < 12; ++t) {
+                b.targetTasks.onUpdateTasks();
+            }
             Entity target = b.getAttackTarget();
             boolean pass;
             switch (c) {
@@ -652,6 +660,7 @@ public final class Gallery {
                     pass = hurt && target == a;
                     break;
                 case 2:
+                case 4:
                     pass = hurt && target != player;
                     break;
                 default:

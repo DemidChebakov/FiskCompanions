@@ -75,8 +75,15 @@ SPELLCASTING, EARTHQUAKE, LIGHTNING, CACTUS/SPIKES.
   `RenderFiskHero.rotateCorpse` calls the same `ModelHelper` rotations; flying fast counts as sprinting, which gives the
   boost pose. Targeting searches 16 blocks up and down (vanilla: 4), so fliers find each other.
 - Suits with a toggle transformation are switched into their suited form. A transformation is kept only if it unlocks
-  more powers or stronger punches, so "suit off" toggles (e.g. SecretHeroes speedster suits) are left alone.
-  Size-changing heroes (Hulk) grow to full size.
+  more powers or stronger punches, so "suit off" toggles (e.g. SecretHeroes speedster suits) are left alone. It is
+  judged with the transformation's timer at 1, since many pack suits enable powers from the timer, not the toggle.
+  A kept transformation that something switches off (Fisk's `cooldown` modifier: Mk50/Mk85 nanites run out after
+  6000 ticks) is switched on again once no cooldown is recharging. Size-changing heroes (Hulk, Ant-Man's giant mode)
+  grow to full size.
+- The menu preview's stand-in runs `DataVar.onUpdate` (local only; `DataContainer.onUpdate` syncs over the network)
+  and gets both the current and previous value of interpolated timers, because renderers read interpolated timers.
+- Targets: vanilla 1.7.10 `EntityAITarget.isSuitableTarget` ignores `isOnSameTeam`, so revenge targeting would hit
+  players regardless of the friendly-fire settings. `EntityFiskHero.setAttackTarget` refuses same-side targets.
 - Flight speed scales with the suit's flight modifier: `speed` (default 0.1) when cruising and `boostSpeed` (default 0.2)
   when boosting; when no flight modifier is currently enabled, the suit's declared one is used.
 - Super speed: the mob sets `Vars.SPEEDING` and `Vars.SPEED` (up to `SpeedsterHelper.getMaxSpeedSetting`); Fisk's

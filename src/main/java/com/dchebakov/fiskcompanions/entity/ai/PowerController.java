@@ -61,6 +61,8 @@ public class PowerController {
     private final Map<String, Integer> usage = new TreeMap<>();
     /** Transformation entries already decided by {@link #suitUp}, so each is evaluated once per hero. */
     private final Set<String> triedTransforms = new HashSet<>();
+    /** Of those, the ones kept on (re-armed if something switches them off later). */
+    private final Set<String> keptTransforms = new HashSet<>();
 
     public PowerController(EntityFiskHero hero) {
         this.hero = hero;
@@ -89,6 +91,7 @@ public class PowerController {
         gadgetCooldowns.clear();
         broken.clear();
         triedTransforms.clear();
+        keptTransforms.clear();
     }
 
     public void update() {
@@ -146,15 +149,17 @@ public class PowerController {
     private void suitUp(Hero h) {
         for (ModifierEntry entry : FiskBridge.toggleTransformations(hero, h)) {
             if (!triedTransforms.add(entry.id)) {
+                // Kept before but switched off since (e.g. Mk50's nanites time out): suit up again once recharged.
+                if (keptTransforms.contains(entry.id) && FiskBridge.reArm(hero, h, entry)) {
+                    suitedUp(entry);
+                    record("transform-rearm");
+                }
                 continue;
             }
             switch (FiskBridge.trySuitUp(hero, h, entry)) {
                 case KEPT:
-                    entry.broadcastSoundAtEntity(hero, SoundTrigger.ENABLE);
-                    FiskBridge.transformation(entry).toggle.get()
-                        .sync(hero);
-                    hero.getSize()
-                        .grow(); // size-changing transformations (Hulk) grow, as their key does for a player
+                    keptTransforms.add(entry.id);
+                    suitedUp(entry);
                     record("transform");
                     break;
                 case REVERTED:
@@ -164,6 +169,14 @@ public class PowerController {
                     break;
             }
         }
+    }
+
+    private void suitedUp(ModifierEntry entry) {
+        entry.broadcastSoundAtEntity(hero, SoundTrigger.ENABLE);
+        FiskBridge.transformation(entry).toggle.get()
+            .sync(hero);
+        hero.getSize()
+            .grow(); // size-changing transformations (Hulk) grow, as their key does for a player
     }
 
     /**

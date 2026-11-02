@@ -15,7 +15,7 @@ from Fisk's Heroes or from any heropack you have installed, and uses that suit's
 
 ![Characters wearing SecretHeroes suits](docs/images/heroes-secretheroes.png)
 
-> **Beta.** v0.1.0 is the first public version. It has been tested in singleplayer; dedicated-server play is untested.
+> **Beta.** v0.1.1 is the current version (v0.1.0 was the first public one). It has been tested in singleplayer; dedicated-server play is untested.
 
 ## Contents
 - [Download](#download)
@@ -32,7 +32,7 @@ from Fisk's Heroes or from any heropack you have installed, and uses that suit's
 ---
 
 ## Download
-Get `fiskcompanions-v0.1.0.jar` from the **[latest release](https://github.com/DemidChebakov/FiskCompanions/releases/latest)**.
+Get `fiskcompanions-v0.1.1.jar` from the **[latest release](https://github.com/DemidChebakov/FiskCompanions/releases/latest)**.
 
 ## Requirements
 | Thing | Version |
@@ -227,6 +227,9 @@ the game log.
 Versions follow [semantic versioning](https://semver.org) and come from git tags (`vMAJOR.MINOR.PATCH`); the build
 reads the tag, so the jar name and the in-game version match it.
 - **v0.1.0** is the first version, a beta. Earlier `v0.0.x` tags are development history.
+- **v0.1.1** (hotfix): heroes no longer fight back against a player who hits them while "fight back" is off; nanite
+  and transform-to-suit heroes (Iron Man Mk50/Mk85, pack suits like sind's Iron Spider 17A) suit up when spawned and
+  in the menu preview, and suit up again after their nanite cooldown runs out.
 - New features bump the minor number (`0.2.0`), fixes bump the patch (`0.1.1`).
 - **1.0.0** is planned once the mod has been tested on a dedicated server and the Hero Configurator has a crafting
   recipe.

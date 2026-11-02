@@ -95,7 +95,7 @@ public class HeroPreview {
 
     public void tick() {
         if (entity != null) {
-            ++entity.ticksExisted; // drives suit renderer animations
+            entity.tickPreview(); // drives transformation timers and suit renderer animations
         }
         if (!userRotated && !dragging) {
             yaw += 1.5F;

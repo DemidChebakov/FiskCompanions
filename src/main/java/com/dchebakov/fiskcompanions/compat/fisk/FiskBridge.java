@@ -10,6 +10,7 @@ import net.minecraft.item.ItemStack;
 
 import com.fiskmods.heroes.FiskHeroes;
 import com.fiskmods.heroes.common.data.var.DataVar;
+import com.fiskmods.heroes.common.data.var.DataVarInterp;
 import com.fiskmods.heroes.common.data.var.Vars;
 import com.fiskmods.heroes.common.entity.attribute.ArmorAttribute;
 import com.fiskmods.heroes.common.hero.Hero;
@@ -18,6 +19,7 @@ import com.fiskmods.heroes.common.hero.HeroTracker;
 import com.fiskmods.heroes.common.hero.modifier.Modifier;
 import com.fiskmods.heroes.common.hero.power.ModifierEntry;
 import com.fiskmods.heroes.common.hero.power.PowerProperty;
+import com.fiskmods.heroes.common.hero.power.prop.Cooldown;
 import com.fiskmods.heroes.common.hero.power.prop.Transformation;
 import com.fiskmods.heroes.util.SHHelper;
 
@@ -144,16 +146,75 @@ public final class FiskBridge {
         float punchBefore = ArmorAttribute.PUNCH_DAMAGE.get(entity, hero, 1.0F);
         if (!toggle.set(entity, true)
             .success()) {
+            traceSuitUp(entity, entry, "set-failed", before, -1, punchBefore, -1.0F);
             return SuitUp.NONE;
+        }
+        // Many pack suits (e.g. sind's Iron Spider) enable their powers only once the transformation's timer has run
+        // to 1, not when the toggle flips. Judge the finished state, then put the timer back so it animates as usual.
+        DataVar<Float> timer = t.timer.hasResult() ? t.timer.get() : null;
+        float timerBefore = timer != null ? timer.get(entity) : 0.0F;
+        if (timer != null) {
+            timer.set(entity, 1.0F);
         }
         int after = hero.getEnabledModifiers(entity)
             .size();
         float punchAfter = ArmorAttribute.PUNCH_DAMAGE.get(entity, hero, 1.0F);
+        if (timer != null) {
+            timer.set(entity, timerBefore);
+        }
         if (after <= before && punchAfter <= punchBefore) {
             toggle.set(entity, false);
+            traceSuitUp(entity, entry, "REVERTED", before, after, punchBefore, punchAfter);
             return SuitUp.REVERTED;
         }
+        traceSuitUp(entity, entry, "KEPT", before, after, punchBefore, punchAfter);
         return SuitUp.KEPT;
+    }
+
+    /**
+     * Switches a transformation that was kept earlier back on after something turned it off, e.g. Fisk's cooldown
+     * modifier (Iron Man Mk50/Mk85 nanites run out after 5 minutes). Waits while any of the hero's cooldowns is still
+     * recharging, or Fisk would switch it straight off again. Returns true if it was switched on (not synced).
+     */
+    public static boolean reArm(EntityLivingBase entity, Hero hero, ModifierEntry entry) {
+        Transformation t = transformation(entry);
+        if (t == null || !t.toggle.hasResult()
+            || t.toggle.get()
+                .get(entity)) {
+            return false;
+        }
+        boolean recharging = hero.getModifierEntries()
+            .filter(e -> e.modifier == Modifier.COOLDOWN)
+            .anyMatch(e -> {
+                Cooldown c = prop(e, PowerProperty.COOLDOWN, null);
+                return c != null && c.cooldown.hasResult()
+                    && c.toggle.hasResult()
+                    && !c.toggle.get(entity)
+                    && c.cooldown.get()
+                        .get(entity) > 0.0F;
+            });
+        return !recharging && t.toggle.get()
+            .set(entity, true)
+            .success();
+    }
+
+    private static final boolean TRACE_SUITUP = System.getProperty("fiskcompanions.trace") != null
+        || Boolean.getBoolean("fiskcompanions.selftest");
+
+    private static void traceSuitUp(EntityLivingBase entity, ModifierEntry entry, String result, int before, int after,
+        float punchBefore, float punchAfter) {
+        if (TRACE_SUITUP) {
+            com.dchebakov.fiskcompanions.FiskCompanions.LOG.info(
+                "[suitup] {} {} {} {}: modifiers {} -> {}, punch {} -> {}",
+                entity.worldObj.isRemote ? "client" : "server",
+                keyOf(HeroTracker.iter(entity)),
+                entry.id,
+                result,
+                before,
+                after,
+                punchBefore,
+                punchAfter);
+        }
     }
 
     /**
@@ -171,8 +232,13 @@ public final class FiskBridge {
                 transformed = true;
                 Transformation t = transformation(entry);
                 if (t.timer.hasResult()) {
-                    t.timer.get()
-                        .set(entity, 1.0F);
+                    DataVar<Float> timer = t.timer.get();
+                    timer.set(entity, 1.0F);
+                    if (timer instanceof DataVarInterp) {
+                        // Renderers read the interpolated value: finish the previous tick's value too.
+                        ((DataVarInterp<Float>) timer).getPrevData()
+                            .set(entity, 1.0F);
+                    }
                 }
             }
         }
@@ -238,6 +304,11 @@ public final class FiskBridge {
 
     public static HeroIteration computeWornSuit(EntityLivingBase entity) {
         return HeroTracker.getHeroIter(SHHelper.getEquipment(entity), null);
+    }
+
+    /** Fisk's per-tick data update (interpolation, resets) without any syncing; used by the client-only preview. */
+    public static void updateDataLocally(Entity entity) {
+        DataVar.onUpdate(entity);
     }
 
     public static void tickSuit(EntityLivingBase entity, HeroIteration iter, TickEvent.Phase phase) {

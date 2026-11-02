@@ -281,4 +281,4 @@ Push a `vX.Y.Z` tag. The **Release tagged build** workflow builds the jar and at
 - [MIT License](LICENSE).
 - Built from the GTNH ExampleMod 1.7.10 template (MIT).
 - Fisk's Superheroes is by FiskFille. This add-on is not affiliated with or endorsed by Fisk's Superheroes, and it
-  does not include any of its code or assets.
+  does not bundle Fisk's Heroes or its assets; you need to install Fisk's Heroes separately.

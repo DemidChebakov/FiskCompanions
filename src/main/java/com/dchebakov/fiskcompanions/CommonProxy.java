@@ -1,11 +1,13 @@
 package com.dchebakov.fiskcompanions;
 
 import net.minecraft.server.MinecraftServer;
+import net.minecraftforge.common.MinecraftForge;
 
 import com.dchebakov.fiskcompanions.debug.CommandSelfTest;
 import com.dchebakov.fiskcompanions.debug.Gallery;
 import com.dchebakov.fiskcompanions.debug.SelfTest;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
+import com.dchebakov.fiskcompanions.entity.OwnerHits;
 import com.dchebakov.fiskcompanions.item.ItemHeroConfigurator;
 import com.dchebakov.fiskcompanions.item.ItemShieldPose;
 import com.dchebakov.fiskcompanions.network.PacketConfigureHero;
@@ -14,6 +16,7 @@ import com.dchebakov.fiskcompanions.network.PacketSettingsSync;
 import com.dchebakov.fiskcompanions.network.PacketSpawnHeroes;
 import com.dchebakov.fiskcompanions.network.PacketUpdateSettings;
 
+import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
@@ -38,6 +41,7 @@ public class CommonProxy {
         shieldPose = new ItemShieldPose();
         GameRegistry.registerItem(shieldPose, "shield_pose");
 
+        MinecraftForge.EVENT_BUS.register(new OwnerHits());
         EntityRegistry.registerModEntity(EntityFiskHero.class, "FiskHero", 0, FiskCompanions.instance, 80, 1, true);
 
         network = NetworkRegistry.INSTANCE.newSimpleChannel(FiskCompanions.MODID);
@@ -63,7 +67,14 @@ public class CommonProxy {
             if (server.isDedicatedServer()) {
                 SelfTest.start(server, true);
             } else {
-                Gallery.start(server, () -> SelfTest.start(server, true)); // screenshots first, then behaviour
+                Gallery.start(server, () -> {
+                    if (Gallery.DIM_ONLY) {
+                        FMLCommonHandler.instance()
+                            .exitJava(0, false);
+                    } else {
+                        SelfTest.start(server, true); // screenshots first, then behaviour
+                    }
+                });
             }
         }
     }

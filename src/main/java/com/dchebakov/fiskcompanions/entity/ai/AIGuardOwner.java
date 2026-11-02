@@ -12,6 +12,8 @@ import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
 /** HERO: picks off hostile mobs that come near the owner, before they attack. */
 public class AIGuardOwner extends EntityAITarget {
 
+    private static final double BOSS_RADIUS = 64.0D;
+
     private final EntityFiskHero hero;
     private final double radius;
     private EntityLiving threat;
@@ -32,11 +34,14 @@ public class AIGuardOwner extends EntityAITarget {
         }
         threat = null;
         double best = Double.MAX_VALUE;
+        // Bosses count from further out: the Ender Dragon attacks in wide swoops, rarely within the guard radius.
+        double search = Math.max(radius, BOSS_RADIUS);
         List<?> list = hero.worldObj
-            .getEntitiesWithinAABB(EntityLiving.class, owner.boundingBox.expand(radius, 4.0D, radius));
+            .getEntitiesWithinAABB(EntityLiving.class, owner.boundingBox.expand(search, search, search));
         for (Object o : list) {
             EntityLiving e = (EntityLiving) o;
-            if (e instanceof IMob && isSuitableTarget(e, false)) {
+            boolean near = BossRange.isBoss(e) || e.getDistanceSqToEntity(owner) <= radius * radius * 2.0D;
+            if (near && e instanceof IMob && isSuitableTarget(e, false)) {
                 double d = e.getDistanceSqToEntity(owner);
                 if (d < best) {
                     best = d;
@@ -51,5 +56,11 @@ public class AIGuardOwner extends EntityAITarget {
     public void startExecuting() {
         taskOwner.setAttackTarget(threat);
         super.startExecuting();
+    }
+
+    /** A boss is followed further than the normal follow range (see {@link BossRange}). */
+    @Override
+    protected double getTargetDistance() {
+        return BossRange.of(taskOwner, super.getTargetDistance());
     }
 }

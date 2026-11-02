@@ -33,4 +33,10 @@ public class AIOwnerHurtByTarget extends EntityAITarget {
         taskOwner.setAttackTarget(attacker);
         super.startExecuting();
     }
+
+    /** A boss is followed further than the normal follow range (see {@link BossRange}). */
+    @Override
+    protected double getTargetDistance() {
+        return BossRange.of(taskOwner, super.getTargetDistance());
+    }
 }

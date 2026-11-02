@@ -2,16 +2,14 @@ package com.dchebakov.fiskcompanions.entity.ai;
 
 import net.minecraft.entity.ai.EntityAIBase;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.MathHelper;
-import net.minecraft.world.World;
 
 import com.dchebakov.fiskcompanions.compat.fisk.FiskBridge;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
 
 /**
  * Keeps a HERO near its owner. An unsuited owner is guarded closely (bodyguard distance); a suited owner gets more room
- * to fight alongside. Teleports when left far behind, unless the hero can fly (then {@link FlightController} catches
- * up).
+ * to fight alongside. Teleports when left far behind and no path leads to the owner, unless the hero can fly (then
+ * {@link FlightController} catches up) and its flight isn't blocked by walls.
  */
 public class AIFollowOwner extends EntityAIBase {
 
@@ -82,31 +80,12 @@ public class AIFollowOwner extends EntityAIBase {
             return; // flight controller steers
         }
         if (!hero.getNavigator()
-            .tryMoveToEntityLiving(owner, speed) && hero.getDistanceSqToEntity(owner) >= TELEPORT_DIST * TELEPORT_DIST
-            && !hero.getFlight()
-                .canFly()) {
-            teleportNear(owner);
-        }
-    }
-
-    private void teleportNear(EntityPlayer player) {
-        int x = MathHelper.floor_double(player.posX) - 2;
-        int z = MathHelper.floor_double(player.posZ) - 2;
-        int y = MathHelper.floor_double(player.boundingBox.minY);
-        for (int dx = 0; dx <= 4; ++dx) {
-            for (int dz = 0; dz <= 4; ++dz) {
-                if ((dx < 1 || dz < 1 || dx > 3 || dz > 3)
-                    && World.doesBlockHaveSolidTopSurface(hero.worldObj, x + dx, y - 1, z + dz)
-                    && !hero.worldObj.getBlock(x + dx, y, z + dz)
-                        .isNormalCube()
-                    && !hero.worldObj.getBlock(x + dx, y + 1, z + dz)
-                        .isNormalCube()) {
-                    hero.setLocationAndAngles(x + dx + 0.5D, y, z + dz + 0.5D, hero.rotationYaw, hero.rotationPitch);
-                    hero.getNavigator()
-                        .clearPathEntity();
-                    return;
-                }
-            }
+            .tryMoveToEntityLiving(owner, speed)
+            && hero.getDistanceSqToEntity(owner) >= TELEPORT_DIST * TELEPORT_DIST
+            && (!hero.getFlight()
+                .canFly() || hero.getFlight()
+                    .wasObstructed())) {
+            hero.teleportNear(owner);
         }
     }
 }

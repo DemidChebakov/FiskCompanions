@@ -1,7 +1,9 @@
 package com.dchebakov.fiskcompanions.entity.ai;
 
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.ai.EntityAIBase;
+import net.minecraft.util.AxisAlignedBB;
 
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
 
@@ -42,6 +44,23 @@ public class AIMeleeAttack extends EntityAIBase {
             .clearPathEntity();
     }
 
+    /** Within arm's reach of the target's box, or of any of its body parts (the Ender Dragon's head, wings, tail). */
+    private boolean touches(EntityLivingBase target) {
+        AxisAlignedBB reachBox = hero.boundingBox.expand(1.0D, 1.5D, 1.0D);
+        if (reachBox.intersectsWith(target.boundingBox)) {
+            return true;
+        }
+        Entity[] parts = target.getParts();
+        if (parts != null) {
+            for (Entity part : parts) {
+                if (reachBox.intersectsWith(part.boundingBox)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     @Override
     public void updateTask() {
         EntityLivingBase target = hero.getAttackTarget();
@@ -69,8 +88,7 @@ public class AIMeleeAttack extends EntityAIBase {
         }
         double reach = hero.width * 2.0F * hero.width * 2.0F + target.width;
         double dist = hero.getDistanceSq(target.posX, target.boundingBox.minY, target.posZ);
-        boolean inReach = dist <= reach + 1.0D || hero.boundingBox.expand(1.0D, 1.5D, 1.0D)
-            .intersectsWith(target.boundingBox);
+        boolean inReach = dist <= reach + 1.0D || touches(target);
         if (inReach && attackTimer <= 0
             && !hero.getShield()
                 .isBlocking()) {

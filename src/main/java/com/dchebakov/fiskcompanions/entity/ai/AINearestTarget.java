@@ -8,8 +8,8 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.ai.EntityAITarget;
 
 /**
- * Nearest-target search like vanilla {@code EntityAINearestAttackableTarget}, but looking half the follow range up and
- * down instead of 4 blocks, so flying heroes and villains can find each other.
+ * Nearest-target search like vanilla {@code EntityAINearestAttackableTarget}, but looking the whole follow range up and
+ * down instead of 4 blocks, so flying heroes, villains, ghasts and the Ender Dragon are found.
  */
 public class AINearestTarget extends EntityAITarget {
 
@@ -28,7 +28,7 @@ public class AINearestTarget extends EntityAITarget {
     public boolean shouldExecute() {
         double range = getTargetDistance();
         List<?> list = taskOwner.worldObj
-            .selectEntitiesWithinAABB(type, taskOwner.boundingBox.expand(range, range / 2.0D, range), selector);
+            .selectEntitiesWithinAABB(type, taskOwner.boundingBox.expand(range, range, range), selector);
         target = null;
         double best = Double.MAX_VALUE;
         for (Object o : list) {
@@ -49,5 +49,11 @@ public class AINearestTarget extends EntityAITarget {
     public void startExecuting() {
         taskOwner.setAttackTarget(target);
         super.startExecuting();
+    }
+
+    /** A boss is followed further than the normal follow range (see {@link BossRange}). */
+    @Override
+    protected double getTargetDistance() {
+        return BossRange.of(taskOwner, super.getTargetDistance());
     }
 }

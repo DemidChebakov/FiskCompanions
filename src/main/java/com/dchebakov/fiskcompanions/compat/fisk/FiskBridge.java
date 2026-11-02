@@ -6,10 +6,14 @@ import java.util.List;
 
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.boss.EntityDragon;
+import net.minecraft.entity.boss.EntityDragonPart;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.DamageSource;
+import net.minecraft.util.EntityDamageSource;
 
 import com.fiskmods.heroes.FiskHeroes;
+import com.fiskmods.heroes.common.damage.DamageProfile;
 import com.fiskmods.heroes.common.data.var.DataVar;
 import com.fiskmods.heroes.common.data.var.DataVarInterp;
 import com.fiskmods.heroes.common.data.var.Vars;
@@ -429,6 +433,49 @@ public final class FiskBridge {
             }
         }
         return null;
+    }
+
+    /** The Ender Dragon behind {@code entity} (the dragon itself or one of its body parts), else null. */
+    public static EntityDragon dragonOf(Entity entity) {
+        if (entity instanceof EntityDragon) {
+            return (EntityDragon) entity;
+        }
+        if (entity instanceof EntityDragonPart && ((EntityDragonPart) entity).entityDragonObj instanceof EntityDragon) {
+            return (EntityDragon) ((EntityDragonPart) entity).entityDragonObj;
+        }
+        return null;
+    }
+
+    /**
+     * Damages the Ender Dragon on behalf of a character. Vanilla ignores every hit on the dragon unless it comes from a
+     * player or an explosion ({@code EntityDragon.attackEntityFromPart}), so mob melee and every Fisk power did
+     * nothing.
+     * The hit is marked as an explosion, the one non-player kind the dragon accepts. Like a player's, only a hit on
+     * the head does full damage; elsewhere the dragon takes a quarter (+1).
+     */
+    public static boolean damageDragon(EntityDragon dragon, EntityLivingBase attacker, float amount, boolean head) {
+        if (amount <= 0.0F || !dragon.isEntityAlive()) {
+            return false;
+        }
+        DamageSource source = new EntityDamageSource("mob", attacker).setExplosion();
+        float before = dragon.getHealth();
+        dragon.attackEntityFromPart(head ? dragon.dragonPartHead : dragon.dragonPartBody, source, amount);
+        return dragon.getHealth() < before;
+    }
+
+    /** The suit's punch damage on top of {@code base}, as Fisk applies it to a suited attacker's melee. */
+    public static float punchDamage(EntityLivingBase entity, float base) {
+        Hero hero = HeroTracker.get(entity);
+        if (hero == null) {
+            return base;
+        }
+        return ArmorAttribute.PUNCH_DAMAGE.get(entity, hero, base);
+    }
+
+    /** A power's base damage from its damage profile, or {@code fallback}. */
+    public static float powerDamage(ModifierEntry entry, float fallback) {
+        DamageProfile profile = entry != null ? prop(entry, PowerProperty.DAMAGE_PROFILE, null) : null;
+        return profile != null && profile.damage() > 0.0F ? profile.damage() : fallback;
     }
 
     public static boolean has(EntityLivingBase entity, Modifier modifier) {

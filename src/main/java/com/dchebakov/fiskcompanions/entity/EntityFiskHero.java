@@ -7,6 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.command.IEntitySelector;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityCreature;
+import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.EntityAILookIdle;
@@ -14,6 +15,7 @@ import net.minecraft.entity.ai.EntityAISwimming;
 import net.minecraft.entity.ai.EntityAIWander;
 import net.minecraft.entity.ai.EntityAIWatchClosest;
 import net.minecraft.entity.ai.attributes.IAttribute;
+import net.minecraft.entity.boss.EntityDragon;
 import net.minecraft.entity.monster.EntityGolem;
 import net.minecraft.entity.monster.IMob;
 import net.minecraft.entity.passive.EntityAnimal;
@@ -21,6 +23,7 @@ import net.minecraft.entity.passive.EntityVillager;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.MathHelper;
@@ -114,11 +117,12 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         targetTasks.addTask(7, villainTarget(EntityVillager.class));
         targetTasks.addTask(7, villainTarget(EntityGolem.class));
         targetTasks.addTask(8, villainTarget(EntityAnimal.class));
+        // EntityLiving, not EntityCreature: ghasts, slimes and the Ender Dragon are hostile but not creatures.
         targetTasks.addTask(
             9,
             new AINearestTarget(
                 this,
-                EntityCreature.class,
+                EntityLiving.class,
                 e -> e instanceof IMob && getAlignment() == Alignment.HERO && getOwner() == null));
     }
 
@@ -224,6 +228,7 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         data.onUpdate(this);
         if (!worldObj.isRemote) {
             restoreSuitIfMissing();
+            unstickFromBlocks();
             if (!controllersBroken) {
                 try {
                     size.update();
@@ -469,6 +474,17 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
         float damage = (float) getEntityAttribute(SharedMonsterAttributes.attackDamage).getAttributeValue();
         swingItem();
         powers.record("melee");
+        EntityDragon dragon = FiskBridge.dragonOf(target);
+        if (dragon != null) {
+            // The dragon ignores mob hits, and Fisk's punch re-application never sees it: deal the punch ourselves.
+            boolean head = boundingBox.expand(1.0D, 1.5D, 1.0D)
+                .intersectsWith(dragon.dragonPartHead.boundingBox);
+            boolean landed = FiskBridge.damageDragon(dragon, this, FiskBridge.punchDamage(this, damage), head);
+            if (landed) {
+                powers.record("dragon-hit");
+            }
+            return landed;
+        }
         boolean hit;
         try {
             hit = target.attackEntityFrom(DamageSource.causeMobDamage(this), damage);
@@ -574,6 +590,99 @@ public class EntityFiskHero extends EntityCreature implements IHeroTrackedEntity
             return true; // heroes never fight players
         }
         return super.isOnSameTeam(other);
+    }
+
+    // ---- staying out of walls ----
+
+    private static final int STUCK_TICKS = 10;
+    private static final int UNSTUCK_RADIUS = 8;
+    private int embeddedTicks;
+
+    /** True if this character's hitbox, at its current size, overlaps solid blocks. */
+    public boolean isEmbedded() {
+        return !worldObj.func_147461_a(boundingBox.contract(0.05D, 0.05D, 0.05D))
+            .isEmpty();
+    }
+
+    /** True if this character's hitbox, at its current size, fits with its feet at (x, y, z). */
+    public boolean fitsAt(double x, double y, double z) {
+        double hw = width / 2.0D;
+        AxisAlignedBB box = AxisAlignedBB.getBoundingBox(x - hw, y, z - hw, x + hw, y + height, z + hw)
+            .contract(0.05D, 0.05D, 0.05D);
+        return worldObj.func_147461_a(box)
+            .isEmpty() && !worldObj.isAnyLiquid(box);
+    }
+
+    private boolean standable(int x, int y, int z) {
+        return World.doesBlockHaveSolidTopSurface(worldObj, x, y - 1, z) && fitsAt(x + 0.5D, y, z + 0.5D);
+    }
+
+    /**
+     * Moves next to {@code anchor} on a spot where the whole (possibly grown) hitbox fits, nearest first and not right
+     * on top of it. Returns false if there is none within 3 blocks.
+     */
+    public boolean teleportNear(Entity anchor) {
+        int ax = MathHelper.floor_double(anchor.posX);
+        int ay = MathHelper.floor_double(anchor.boundingBox.minY);
+        int az = MathHelper.floor_double(anchor.posZ);
+        for (int r = 2; r <= 3; ++r) {
+            for (int dy : new int[] { 0, 1, -1, 2 }) {
+                for (int dx = -r; dx <= r; ++dx) {
+                    for (int dz = -r; dz <= r; ++dz) {
+                        if ((Math.abs(dx) == r || Math.abs(dz) == r) && standable(ax + dx, ay + dy, az + dz)) {
+                            moveTo(ax + dx + 0.5D, ay + dy, az + dz + 0.5D);
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private void moveTo(double x, double y, double z) {
+        setLocationAndAngles(x, y, z, rotationYaw, rotationPitch);
+        motionX = motionY = motionZ = 0.0D;
+        getNavigator().clearPathEntity();
+    }
+
+    /**
+     * Vanilla never pushes a mob out of blocks. A character can end up inside them by growing (Hulk, Hulkbuster) or a
+     * size script under a low ceiling, or by being knocked into a wall: after half a second, step to the nearest spot
+     * where the hitbox fits, or back to the owner.
+     */
+    private void unstickFromBlocks() {
+        if (!isEmbedded()) {
+            embeddedTicks = 0;
+            return;
+        }
+        if (++embeddedTicks < STUCK_TICKS) {
+            return;
+        }
+        embeddedTicks = 0;
+        int bx = MathHelper.floor_double(posX);
+        int by = MathHelper.floor_double(boundingBox.minY);
+        int bz = MathHelper.floor_double(posZ);
+        for (int r = 1; r <= UNSTUCK_RADIUS; ++r) {
+            for (int dy = -1; dy <= Math.min(r, 4); ++dy) {
+                for (int dx = -r; dx <= r; ++dx) {
+                    for (int dz = -r; dz <= r; ++dz) {
+                        if (Math.max(Math.abs(dx), Math.abs(dz)) != r && Math.abs(dy) != r) continue;
+                        int x = bx + dx, y = by + dy, z = bz + dz;
+                        boolean ok = flight.isFlying() ? fitsAt(x + 0.5D, y, z + 0.5D) : standable(x, y, z);
+                        if (ok) {
+                            moveTo(x + 0.5D, y, z + 0.5D);
+                            powers.record("unstuck");
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+        EntityPlayer owner = getOwner();
+        if (owner != null && teleportNear(owner)) {
+            powers.record("unstuck");
+        }
     }
 
     @Override

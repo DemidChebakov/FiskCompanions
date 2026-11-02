@@ -122,3 +122,18 @@ SPELLCASTING, EARTHQUAKE, LIGHTNING, CACTUS/SPIKES.
   Fisk's shield renderer only raises it for players (and reads the local player for other entities).
 - Some suits disable their shield while aiming or flying (Mk85), so the mob drops `AIMING` while shielding, and
   only raises a suit shield while the modifier is enabled.
+
+## Nether, End and flight (v0.2.1)
+- The Ender Dragon ignores `attackEntityFrom`. `attackEntityFromPart` damages only for a player or explosion source,
+  and non-head parts take `dmg/4 + 1`. Fisk projectiles hit `EntityDragonPart`s, which are not living, so a mob's
+  hits did nothing. `FiskBridge.damageDragon` calls `attackEntityFromPart` with an explosion-flagged
+  `EntityDamageSource` from the mob:
+  - melee hits the head when the hero's box (grown by 1/1.5/1) touches it, otherwise the body;
+  - shots and beam ticks hit the body, with the modifier's `DAMAGE_PROFILE` damage.
+- The dragon is `EntityLiving` with `IBossDisplayData`, not `EntityCreature`, so hostile targeting scans
+  `EntityLiving`. `BossRange` raises the target distance to 96 for bosses. `OwnerHits` (an `AttackEntityEvent`
+  subscriber) remembers the owner's last hit, with dragon parts mapped to the dragon, because a part is never set as
+  `getLastAttacker`.
+- Flight pose: Fisk ramps `FLIGHT_TIMER` (10 ticks) from `Vars.FLYING`, and `FLIGHT_BOOST_TIMER` (8 ticks) from
+  flying + sprinting. It also resets `FLYING` near the ground, so the mob re-asserts it every tick while airborne.
+  Take-off needs 10 ticks of wanting to fly, and boost uses on/off thresholds, so neither timer reverses mid-ramp.

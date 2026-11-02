@@ -115,6 +115,21 @@ public class ClientSelfTestLauncher {
         }
     }
 
+    private int jumpTicks;
+
+    /** The flight probe's "owner jumping" situation: the real client player hops, as a person playing would. */
+    private void driveJumps(Minecraft mc) {
+        int every = FlightProbe.jumpInterval;
+        if (every <= 0 || mc.thePlayer == null) {
+            jumpTicks = 0;
+            return;
+        }
+        if (++jumpTicks >= every && mc.thePlayer.onGround) {
+            jumpTicks = 0;
+            mc.thePlayer.jump();
+        }
+    }
+
     private static void shot(Minecraft mc, String name) {
         ScreenShotHelper.saveScreenshot(mc.mcDataDir, name, mc.displayWidth, mc.displayHeight, mc.getFramebuffer());
     }
@@ -141,6 +156,7 @@ public class ClientSelfTestLauncher {
         if (event.phase == TickEvent.Phase.END && mc.theWorld != null) {
             driveGuiTest(mc);
             driveSpawnerTest(mc);
+            driveJumps(mc);
         }
         if (launched || event.phase != TickEvent.Phase.END || !(mc.currentScreen instanceof GuiMainMenu)) {
             return;

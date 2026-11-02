@@ -15,7 +15,7 @@ from Fisk's Heroes or from any heropack you have installed, and uses that suit's
 
 ![Characters wearing SecretHeroes suits](docs/images/heroes-secretheroes.png)
 
-> **Beta.** v0.2.0 is the current version (v0.1.0 was the first public one). It has been tested in singleplayer; dedicated-server play is untested.
+> **Beta.** v0.2.1 is the current version (v0.1.0 was the first public one). See the [changelog](CHANGELOG.md). It has been tested in singleplayer; dedicated-server play is untested.
 
 ## Contents
 - [Download](#download)
@@ -32,7 +32,7 @@ from Fisk's Heroes or from any heropack you have installed, and uses that suit's
 ---
 
 ## Download
-Get `fiskcompanions-v0.2.0.jar` from the **[latest release](https://github.com/DemidChebakov/FiskCompanions/releases/latest)**.
+Get `fiskcompanions-v0.2.1.jar` from the **[latest release](https://github.com/DemidChebakov/FiskCompanions/releases/latest)**.
 
 ## Requirements
 | Thing | Version |
@@ -173,13 +173,26 @@ covered side are stopped, shields take damage and can break, and melee attackers
 
 ### Flying
 Suits that can fly take off when their target or owner is far away or up in the air, and fly with Fisk's own flight
-animations: leaning forward when moving, lying flat and speeding when far away (boost), and hovering when close. They
-land again once they're near their target on the ground.
+animations:
+- they lean forward when moving;
+- they lie flat and speed up when far away (boost);
+- they hover about a block above the ground when close.
+
+They don't take off just because you jump, and they turn smoothly instead of snapping. They land again once they're
+near their target on the ground. Under a low ceiling (Nether caves, tunnels) they walk instead of flying into the
+rock.
 
 Each suit flies at **its own speed**, taken from the suit's flight settings. The Atom is slow, Iron Man and Martian
 Manhunter are fast, and the Anti-Monitor is very fast. Flying far away is faster than flying close (like sprinting).
 
 ![Flying heroes](docs/images/flight.png)
+
+### The Nether and the End
+- **Nether:** characters that get pushed into a wall move to the nearest free spot. Growing suits (Hulk, Hulkbuster)
+  don't grow where there's no room.
+- **End:** heroes fight the Ender Dragon. Melee hits near the head deal full damage. Blasts and beams hit the body
+  for reduced damage, like a player's arrows.
+- Characters with several ranged powers take turns with them.
 
 ### Speedsters
 Characters with super speed (The Flash, Reverse-Flash, Zoom, Impulse, Godspeed, any heropack speedster) run at their
@@ -239,6 +252,9 @@ reads the tag, so the jar name and the in-game version match it.
   headphones, …) no longer draws over the suit's helmet.
 - **v0.2.0**: characters defend with shields: suit shields and protective fields (nanite shields, Doctor Strange)
   and Captain America's shield.
+- **v0.2.1**: Nether and End fixes (no more getting stuck in walls, heroes really fight the Ender Dragon, powers
+  rotate) and smooth flight (no take-off on every jump, no flickering pose).
+- Full list of changes: [CHANGELOG.md](CHANGELOG.md).
 - New features bump the minor number (`0.2.0`), fixes bump the patch (`0.1.1`).
 - **1.0.0** is planned once the mod has been tested on a dedicated server and the Hero Configurator has a crafting
   recipe.
@@ -268,7 +284,8 @@ Heropack zips for dev runs go in `run/client/fiskheroes/`.
 ```
 Takes about 3-4 minutes. It opens a superflat creative world by itself, checks the configurator GUI, flight, the
 speedster race, bow and shield throwing (and that no item drops), the spawner menu (squad spawn, duplicate warning,
-Remove all), the four friendly-fire rules, and then runs every loaded hero through villain-vs-hero,
+Remove all), the four friendly-fire rules, Nether and End scenarios (tunnels and low ceilings, a ghast, the Ender
+Dragon) and a flight-smoothness probe in all three dimensions, and then runs every loaded hero through villain-vs-hero,
 villain-vs-animals and guard scenarios (`run/client/fiskcompanions-selftest.txt`), then quits. Keep only a couple of
 heropacks in `run/client/fiskheroes/` to stay within that time.
 
@@ -276,6 +293,7 @@ Options:
 - `-PfcGallery` also saves a screenshot gallery of every hero, five per image (`run/client/screenshots/`, index in
   `run/client/fiskcompanions-gallery.txt`). Slow with many heropacks.
 - `-PfcOnly=iron_man_mk50,secretheroes:hulk` limits the run to heroes whose key contains one of those parts.
+- `-PfcDimOnly` runs only the Nether/End scenarios and the flight probe, then quits.
 - `-PfcTrace=<hero key part>` logs that mob's AI state every second.
 
 In any world, ops can also run `/fcselftest`.
@@ -285,7 +303,8 @@ In any world, ops can also run `/fcselftest`.
 power, gadget and weapon is driven on a mob.
 
 ### Releasing
-Push a `vX.Y.Z` tag. The **Release tagged build** workflow builds the jar and attaches it to the GitHub release.
+Add the version to [CHANGELOG.md](CHANGELOG.md), then push a `vX.Y.Z` tag. The **Release tagged build** workflow
+builds the jar and attaches it to the GitHub release.
 
 ---
 

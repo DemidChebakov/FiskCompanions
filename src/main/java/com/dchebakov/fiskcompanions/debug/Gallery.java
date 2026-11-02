@@ -41,6 +41,9 @@ public final class Gallery {
 
     private static final int PER_PAGE = 5;
     private static final boolean SHOW_GALLERY = Boolean.getBoolean("fiskcompanions.gallery");
+    /** Dev: {@code -PfcDimOnly} runs only the Nether/End tests (then exits). */
+    public static final boolean DIM_ONLY = Boolean.getBoolean("fiskcompanions.selftest.dimonly");
+    private boolean dimensionTests;
     private static final int PAGE_TICKS = 80;
     private static final int SHOT_AT = 70;
 
@@ -138,6 +141,13 @@ public final class Gallery {
                 return;
             }
             setUp((EntityPlayerMP) world.playerEntities.get(0));
+            return;
+        }
+        if (dimensionTests) {
+            return; // DimensionTests ticks itself and calls finish()
+        }
+        if (DIM_ONLY) {
+            startDimensionTests();
             return;
         }
         if (guiTicks >= 0) {
@@ -667,7 +677,12 @@ public final class Gallery {
         friendlyFireTest();
         shieldTest();
         creeperTest();
-        finish();
+        startDimensionTests();
+    }
+
+    private void startDimensionTests() {
+        dimensionTests = true;
+        DimensionTests.start(server, player, heroes, index::add, this::finish);
     }
 
     private static final String[] AVENGERS = { "fiskheroes:iron_man", "fiskheroes:captain_america",

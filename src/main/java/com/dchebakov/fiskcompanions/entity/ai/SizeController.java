@@ -1,5 +1,7 @@
 package com.dchebakov.fiskcompanions.entity.ai;
 
+import net.minecraft.util.AxisAlignedBB;
+
 import com.dchebakov.fiskcompanions.compat.fisk.FiskBridge;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
 import com.fiskmods.heroes.common.data.var.Vars;
@@ -11,7 +13,8 @@ import com.fiskmods.heroes.common.hero.power.PowerProperty;
  * Port of Fisk's {@code ModifierSizeManipulation}, which only runs for players: moves {@code Vars.SCALE} toward the
  * modifier's min or max size following {@code Vars.SIZE_STATE}, keeping health proportional. Without it a hero like
  * Hulk is left half-transformed (his script counts as transformed only from scale 1.4 up). Server side; the scale var
- * is synced and the entity applies it to its hitbox and renderer.
+ * is synced and the entity applies it to its hitbox and renderer. Growth waits while the bigger hitbox wouldn't fit
+ * (low ceilings, tunnels), so a character never grows into the walls.
  */
 public class SizeController {
 
@@ -46,6 +49,9 @@ public class SizeController {
         float next = scale;
         if (state > 0) {
             next = Math.min(max, scale + increment);
+            if (next > scale && !roomFor(next)) {
+                return; // no room to grow (low ceiling, tunnel): hold this size and try again next tick
+            }
         } else if (state < 0) {
             next = Math.max(min, scale - increment);
         }
@@ -58,6 +64,22 @@ public class SizeController {
             Vars.SIZE_STATE.set(hero, (byte) 0)
                 .sync(); // reached the target size
         }
+    }
+
+    /** The hitbox at {@code scale} (as {@code EntityFiskHero.applyScale} sets it) would not overlap any block. */
+    private boolean roomFor(float scale) {
+        double hw = 0.6D * scale / 2.0D;
+        AxisAlignedBB box = AxisAlignedBB
+            .getBoundingBox(
+                hero.posX - hw,
+                hero.boundingBox.minY,
+                hero.posZ - hw,
+                hero.posX + hw,
+                hero.boundingBox.minY + 1.8D * scale,
+                hero.posZ + hw)
+            .contract(0.05D, 0.05D, 0.05D);
+        return hero.worldObj.func_147461_a(box)
+            .isEmpty();
     }
 
     private static double healthScale(float scale) {

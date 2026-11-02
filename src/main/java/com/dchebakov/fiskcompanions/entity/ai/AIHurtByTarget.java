@@ -25,4 +25,10 @@ public class AIHurtByTarget extends EntityAIHurtByTarget {
         EntityLivingBase attacker = hero.getAITarget();
         return attacker != null && !hero.isOnSameTeam(attacker) && super.shouldExecute();
     }
+
+    /** A boss is followed further than the normal follow range (see {@link BossRange}). */
+    @Override
+    protected double getTargetDistance() {
+        return BossRange.of(taskOwner, super.getTargetDistance());
+    }
 }

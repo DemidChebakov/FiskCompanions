@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.TreeMap;
 
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.boss.EntityDragon;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.potion.Potion;
 import net.minecraft.potion.PotionEffect;
@@ -52,6 +53,10 @@ public class PowerController {
     private final Map<Modifier, Integer> cooldowns = new HashMap<>();
     private final Map<Modifier, Integer> beamTicks = new HashMap<>();
     private final Map<Equipment, Integer> gadgetCooldowns = new HashMap<>();
+    /** Tick each shot power was last fired, so ready shots take turns instead of the first one always firing. */
+    private final Map<Modifier, Integer> lastFired = new HashMap<>();
+    /** Ticks between power hits applied to the Ender Dragon while a beam is on it. */
+    private static final int DRAGON_BEAM_INTERVAL = 10;
     /** Modifiers whose port threw on this mob; skipped so one broken pack power doesn't spam the log. */
     private final Set<Modifier> broken = new HashSet<>();
     private int globalCooldown;
@@ -89,6 +94,7 @@ public class PowerController {
         cooldowns.clear();
         beamTicks.clear();
         gadgetCooldowns.clear();
+        lastFired.clear();
         broken.clear();
         triedTransforms.clear();
         keptTransforms.clear();
@@ -134,6 +140,9 @@ public class PowerController {
         beaming |= updateChargedBeam(h, target, dist, sees);
         if (beaming) {
             hero.faceEntity(target);
+            if (sees && hero.ticksExisted % DRAGON_BEAM_INTERVAL == 0) {
+                hitDragon(target, activeBeam(h), 4.0F);
+            }
         }
         if (sees && !shielding && globalCooldown <= 0 && !fireShot(h, target, dist)) {
             useGadget(h, target, dist);
@@ -251,15 +260,29 @@ public class PowerController {
         return beaming;
     }
 
+    /**
+     * Fires one ready, in-range shot power: the one used longest ago, so a hero with several (repulsors, energy blasts,
+     * fireballs…) rotates through them instead of always firing whichever is listed first.
+     */
     private boolean fireShot(Hero h, EntityLivingBase target, double dist) {
+        List<ShotAbility> ready = new ArrayList<>();
+        Map<ShotAbility, ModifierEntry> entries = new HashMap<>();
         for (ShotAbility shot : Abilities.SHOTS) {
             if (cooldowns.containsKey(shot.modifier) || broken.contains(shot.modifier)) {
                 continue;
             }
             ModifierEntry entry = h.getEnabledModifier(hero, shot.modifier);
-            if (entry == null || dist > shot.range(entry)) {
-                continue;
+            if (entry != null && dist <= shot.range(entry)) {
+                ready.add(shot);
+                entries.put(shot, entry);
             }
+        }
+        ready.sort(
+            (a, b) -> Integer.compare(
+                lastFired.getOrDefault(a.modifier, Integer.MIN_VALUE),
+                lastFired.getOrDefault(b.modifier, Integer.MIN_VALUE)));
+        for (ShotAbility shot : ready) {
+            ModifierEntry entry = entries.get(shot);
             hero.faceEntity(target);
             try {
                 shot.fire(hero, target, entry);
@@ -273,11 +296,36 @@ public class PowerController {
                 continue;
             }
             record("shot:" + shot.modifier.getName());
+            lastFired.put(shot.modifier, hero.ticksExisted);
             cooldowns.put(shot.modifier, shot.cooldown(entry));
             globalCooldown = GLOBAL_COOLDOWN;
+            hitDragon(target, entry, 4.0F);
             return true;
         }
         return false;
+    }
+
+    /** The enabled beam power currently switched on (toggle beam or charged beam), for its damage. */
+    private ModifierEntry activeBeam(Hero h) {
+        for (ToggleAbility toggle : Abilities.TOGGLES) {
+            if (toggle.mode == ToggleAbility.Mode.BEAM && toggle.var.get(hero)) {
+                ModifierEntry entry = h.getEnabledModifier(hero, toggle.modifier);
+                if (entry != null) return entry;
+            }
+        }
+        return h.getEnabledModifier(hero, Modifier.CHARGED_BEAM);
+    }
+
+    /**
+     * Fisk's projectiles and beams do hit the Ender Dragon's body parts, but the dragon discards any damage that isn't
+     * from a player or an explosion. So when a power is used on a dragon, its damage is applied here instead (the
+     * same kind of port as the player-only interactions in {@code ability/}).
+     */
+    private void hitDragon(EntityLivingBase target, ModifierEntry entry, float fallback) {
+        EntityDragon dragon = FiskBridge.dragonOf(target);
+        if (dragon != null && FiskBridge.damageDragon(dragon, hero, FiskBridge.powerDamage(entry, fallback), false)) {
+            record("dragon-hit");
+        }
     }
 
     /**

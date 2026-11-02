@@ -110,6 +110,9 @@ SPELLCASTING, EARTHQUAKE, LIGHTNING, CACTUS/SPIKES.
   `SHIELD_COOLDOWN`) → `Shield.hit` (shield health, breaks), knockback on melee/fall/explosion, `onShieldHit`, cancel.
 - `canShieldBlock` lets item shields (Captain America's) block only for an `EntityPlayer` that is using the item. The
   mob runs the same steps itself in `FiskBridge.blockWithItem`, passing the item's `ShieldInfo` as a SUIT type. The
-  blocking arm pose is the vanilla `heldItemRight = 3`, synced through datawatcher 22.
+  blocking state is synced through datawatcher 22. Fisk only draws the raised shield for a player using the item (its
+  `RenderItemCapsShield` even reads the local player for other entities), so `RenderFiskHero.renderEquippedItems`
+  draws it on the torso: `bipedBody.postRender`, translate (0, 0.375, -0.25), rotate 90° about X, then
+  `RenderItemCapsShield.render(stack, entity, false)`; the arm stays down (`heldItemRight = 0`, as Fisk does).
 - Some suits disable their shield while aiming or flying (Mk85), so the mob drops `AIMING` while shielding, and
   only raises a suit shield while the modifier is enabled.

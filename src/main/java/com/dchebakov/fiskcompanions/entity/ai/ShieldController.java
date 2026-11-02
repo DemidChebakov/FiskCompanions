@@ -75,7 +75,22 @@ public class ShieldController {
         restTicks = 0;
     }
 
+    private int forcedTicks;
+
+    /** Dev self-test: hold the shield up for the next few ticks regardless of threats (for a posed screenshot). */
+    public void forceBlockForTest() {
+        forcedTicks = 5;
+    }
+
     public void update() {
+        if (forcedTicks > 0) {
+            --forcedTicks;
+            Hero fh = FiskBridge.hero(hero);
+            suitShield = fh != null && fh.getModifiers()
+                .contains(Modifier.SHIELD);
+            setBlocking(true);
+            return;
+        }
         Hero h = FiskBridge.hero(hero);
         suitShield = h != null && h.getModifiers()
             .contains(Modifier.SHIELD);

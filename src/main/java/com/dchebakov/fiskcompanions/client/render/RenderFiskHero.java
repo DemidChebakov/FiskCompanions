@@ -18,7 +18,9 @@ import com.dchebakov.fiskcompanions.entity.BaseSkin;
 import com.dchebakov.fiskcompanions.entity.EntityFiskHero;
 import com.fiskmods.heroes.client.animation.GLProxy;
 import com.fiskmods.heroes.client.model.ModelHelper;
+import com.fiskmods.heroes.client.render.item.weapon.RenderItemCapsShield;
 import com.fiskmods.heroes.common.data.var.Vars;
+import com.fiskmods.heroes.common.item.weapon.ItemCapsShield;
 import com.fiskmods.heroes.util.SHClientUtils;
 
 import cpw.mods.fml.relauncher.Side;
@@ -38,12 +40,49 @@ public class RenderFiskHero extends RenderBiped {
         super(new ModelBiped(), 0.5F);
     }
 
-    /** Captain America's shield raised to block: the vanilla blocking arm pose (as a player blocking with a sword). */
+    /** Blocking with Captain America's shield: the arm stays down, as Fisk does for a blocking player. */
     @Override
     protected void func_82420_a(EntityLiving entity, ItemStack held) {
         super.func_82420_a(entity, held);
-        if (held != null && entity instanceof EntityFiskHero && ((EntityFiskHero) entity).isBlockingWithItem()) {
-            field_82423_g.heldItemRight = field_82425_h.heldItemRight = modelBipedMain.heldItemRight = 3;
+        if (isBlockingWithShield(entity)) {
+            field_82423_g.heldItemRight = field_82425_h.heldItemRight = modelBipedMain.heldItemRight = 0;
+        }
+    }
+
+    private static boolean isBlockingWithShield(EntityLivingBase entity) {
+        ItemStack held = entity.getHeldItem();
+        return entity instanceof EntityFiskHero && ((EntityFiskHero) entity).isBlockingWithItem()
+            && held != null
+            && held.getItem() instanceof ItemCapsShield;
+    }
+
+    /**
+     * Fisk draws a raised Captain America's shield (held in front of the body) only for a player using the item, and
+     * its shield renderer reads the local player for anyone else. So while blocking, the shield is drawn here in front
+     * of the torso, face out, instead of in the lowered hand.
+     */
+    @Override
+    protected void renderEquippedItems(EntityLiving entity, float partialTicks) {
+        if (!isBlockingWithShield(entity)) {
+            super.renderEquippedItems(entity, partialTicks);
+            return;
+        }
+        ItemStack shield = entity.getHeldItem();
+        entity.setCurrentItemOrArmor(0, null); // vanilla would draw it in the lowered hand
+        try {
+            super.renderEquippedItems(entity, partialTicks);
+        } finally {
+            entity.setCurrentItemOrArmor(0, shield);
+        }
+        GL11.glPushMatrix();
+        try {
+            // Held flat against the front of the torso, face out, like a player blocking with it.
+            modelBipedMain.bipedBody.postRender(0.0625F);
+            GL11.glTranslatef(0.0F, 0.375F, -0.25F);
+            GL11.glRotatef(90.0F, 1.0F, 0.0F, 0.0F);
+            RenderItemCapsShield.render(shield, entity, false);
+        } finally {
+            GL11.glPopMatrix();
         }
     }
 
